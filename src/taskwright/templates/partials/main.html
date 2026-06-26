@@ -116,7 +116,10 @@
     </div>
 
     {% if git_message %}
-      <div class="git-toast">{{ git_message }}</div>
+      <div class="git-toast" role="status">
+        <span class="git-toast-msg">{{ git_message }}</span>
+        <button type="button" class="git-toast-close" aria-label="Dismiss" onclick="this.closest('.git-toast').remove()">×</button>
+      </div>
     {% endif %}
 
     <div class="view-bar">
