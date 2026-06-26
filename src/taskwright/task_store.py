@@ -360,9 +360,6 @@ def copy_starter_files(target: Path) -> None:
             "Run `taskwright serve` from this folder to launch the local dashboard.\n",
             encoding="utf-8",
         )
-    gitignore = target / ".gitignore"
-    if not gitignore.exists():
-        gitignore.write_text(".venv/\n__pycache__/\n*.pyc\n", encoding="utf-8")
 
 
 def _git(workspace: Path, *args: str, timeout: int = 20) -> subprocess.CompletedProcess[str]:
