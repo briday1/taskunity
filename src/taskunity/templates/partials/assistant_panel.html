@@ -20,6 +20,15 @@
             hx-target="#ai-messages"
             hx-swap="beforeend"
         hx-indicator="#ai-thinking">
+        <input type="hidden" name="ai_enabled" value="{{ ai_cfg.ai_enabled }}">
+        <input type="hidden" name="ai_base_url" value="{{ ai_cfg.ai_base_url }}">
+        <input type="hidden" name="ai_api_key" value="{{ ai_cfg.ai_api_key }}">
+        <input type="hidden" name="ai_model" value="{{ ai_cfg.ai_model }}">
+        <input type="hidden" name="ai_chat_path" value="{{ ai_cfg.ai_chat_path }}">
+        <input type="hidden" name="ai_models_path" value="{{ ai_cfg.ai_models_path }}">
+        <input type="hidden" name="ai_timeout_seconds" value="{{ ai_cfg.ai_timeout_seconds }}">
+        <input type="hidden" name="ai_max_tokens" value="{{ ai_cfg.ai_max_tokens }}">
+        <input type="hidden" name="ai_temperature" value="{{ ai_cfg.ai_temperature }}">
         <input type="hidden" name="context_type" value="{{ context_type }}">
         <input type="hidden" name="entity_id" value="{{ entity_id }}">
         <input type="hidden" name="context_json" value="{{ context_json | e }}">

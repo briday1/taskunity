@@ -157,9 +157,67 @@
       })();
 
       (function () {
+        var AI_SETTINGS_KEY = 'taskunity.aiSettings';
+
+        function readAiSettings() {
+          try {
+            var raw = localStorage.getItem(AI_SETTINGS_KEY) || '{}';
+            var parsed = JSON.parse(raw);
+            return parsed && typeof parsed === 'object' ? parsed : {};
+          } catch (_) {
+            return {};
+          }
+        }
+
+        function writeAiSettings(data) {
+          try {
+            localStorage.setItem(AI_SETTINGS_KEY, JSON.stringify(data || {}));
+          } catch (_) {}
+        }
+
+        function applyAiSettings() {
+          var data = readAiSettings();
+          var settingsForm = document.getElementById('ai-settings-form');
+          var chatForm = document.getElementById('ai-chat-form');
+          var forms = [settingsForm, chatForm].filter(Boolean);
+          if (!forms.length) return;
+
+          var enabled = String(data.ai_enabled || '1') === '1';
+          forms.forEach(function (form) {
+            ['ai_base_url', 'ai_api_key', 'ai_model', 'ai_chat_path', 'ai_models_path', 'ai_timeout_seconds', 'ai_max_tokens', 'ai_temperature'].forEach(function (name) {
+              var field = form.querySelector('[name="' + name + '"]');
+              if (field && data[name] != null) field.value = String(data[name]);
+            });
+            var enabledField = form.querySelector('[name="ai_enabled"]');
+            if (enabledField) enabledField.checked = enabled;
+            var fieldsWrap = form.querySelector('#ai-settings-fields');
+            if (fieldsWrap) fieldsWrap.style.display = enabled ? '' : 'none';
+          });
+        }
+
+        function saveAiSettings() {
+          var form = document.getElementById('ai-settings-form');
+          if (!form) return;
+          var fd = new FormData(form);
+          var data = {
+            ai_enabled: fd.has('ai_enabled') ? '1' : '0',
+            ai_base_url: (fd.get('ai_base_url') || '').toString(),
+            ai_api_key: (fd.get('ai_api_key') || '').toString(),
+            ai_model: (fd.get('ai_model') || '').toString(),
+            ai_chat_path: (fd.get('ai_chat_path') || '').toString(),
+            ai_models_path: (fd.get('ai_models_path') || '').toString(),
+            ai_timeout_seconds: (fd.get('ai_timeout_seconds') || '30').toString(),
+            ai_max_tokens: (fd.get('ai_max_tokens') || '2048').toString(),
+            ai_temperature: (fd.get('ai_temperature') || '0.7').toString(),
+          };
+          writeAiSettings(data);
+          applyAiSettings();
+        }
+
         function aiBuildParams() {
           var form = document.getElementById('ai-settings-form');
           if (!form) return '';
+          applyAiSettings();
           var params = new URLSearchParams();
           var formData = new FormData(form);
           formData.forEach(function (value, key) {
@@ -229,11 +287,33 @@
           }
         });
 
+        document.addEventListener('input', function (e) {
+          if (!(e.target && e.target.closest && e.target.closest('#ai-settings-form'))) return;
+          saveAiSettings();
+        });
+
+        document.addEventListener('change', function (e) {
+          if (!(e.target && e.target.closest && e.target.closest('#ai-settings-form'))) return;
+          saveAiSettings();
+        });
+
+        document.addEventListener('submit', function (e) {
+          var form = e.target && e.target.closest ? e.target.closest('#ai-settings-form') : null;
+          if (!form) return;
+          saveAiSettings();
+        });
+
         document.addEventListener('change', function (e) {
           if (!(e.target && e.target.id === 'ai-model-select')) return;
           var modelInput = document.getElementById('ai-model-input');
           if (modelInput && e.target.value) modelInput.value = e.target.value;
         });
+
+        document.body.addEventListener('htmx:afterSwap', function () {
+          applyAiSettings();
+        });
+
+        applyAiSettings();
       })();
 
       function setProject(picker, value, color, label) {
