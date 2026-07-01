@@ -272,10 +272,14 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
             "ai_temperature": "0.7",
         }
 
-    def _ai_config_from_query(request: Request) -> dict[str, str]:
-        """Build AI config using persisted values with query-string overrides."""
+    def _ai_config_from_params(params) -> dict[str, str]:
+        """Build AI config using persisted values with request overrides.
+
+        Accepts any params mapping (query string or form data). Sensitive
+        values such as the API key are submitted in the request body rather
+        than the URL so they never appear in server access logs.
+        """
         cfg = ai_config()
-        qp = request.query_params
         for key in {
             "ai_base_url",
             "ai_api_key",
@@ -286,10 +290,10 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
             "ai_max_tokens",
             "ai_temperature",
         }:
-            if key in qp:
-                cfg[key] = (qp.get(key) or "").strip()
-        if "ai_enabled" in qp:
-            cfg["ai_enabled"] = "1" if parse_toggle(qp.get("ai_enabled")) else "0"
+            if key in params:
+                cfg[key] = (params.get(key) or "").strip()
+        if "ai_enabled" in params:
+            cfg["ai_enabled"] = "1" if parse_toggle(params.get("ai_enabled")) else "0"
         return cfg
 
     def _ai_endpoint_url(cfg: dict[str, str], override_key: str, default_suffix: str) -> str:
@@ -2881,9 +2885,9 @@ Rules:
             '<div id="ai-settings-status" class="ai-save-ok">✓ AI settings saved in browser.</div>'
         )
 
-    @app.get("/ai/models", response_class=HTMLResponse)
-    def ai_models_route(request: Request) -> HTMLResponse:
-        cfg = _ai_config_from_query(request)
+    @app.post("/ai/models", response_class=HTMLResponse)
+    async def ai_models_route(request: Request) -> HTMLResponse:
+        cfg = _ai_config_from_params(await request.form())
         if not cfg["ai_base_url"]:
             return HTMLResponse('<option value="">No endpoint configured</option>')
         if not cfg["ai_api_key"]:
@@ -2903,9 +2907,9 @@ Rules:
         )
         return HTMLResponse(opts or '<option value="">No models found</option>')
 
-    @app.get("/ai/test", response_class=HTMLResponse)
-    def ai_test_route(request: Request) -> HTMLResponse:
-        cfg = _ai_config_from_query(request)
+    @app.post("/ai/test", response_class=HTMLResponse)
+    async def ai_test_route(request: Request) -> HTMLResponse:
+        cfg = _ai_config_from_params(await request.form())
         if not cfg["ai_base_url"]:
             return HTMLResponse('<div id="ai-connection-status" class="ai-save-err">Set Base URL first.</div>')
         if not cfg["ai_api_key"]:

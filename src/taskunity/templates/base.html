@@ -237,7 +237,11 @@
         async function aiLoadModels() {
           aiSetStatus('ai-connection-status', 'ai-settings-status-inline', 'Loading models...');
           var params = aiBuildParams();
-          var response = await fetch('/ai/models' + (params ? '?' + params : ''));
+          var response = await fetch('/ai/models', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: params,
+          });
           var optionsHtml = await response.text();
           var datalist = document.getElementById('ai-model-datalist');
           var select = document.getElementById('ai-model-select');
@@ -261,7 +265,11 @@
         async function aiTestConnection() {
           aiSetStatus('ai-connection-status', 'ai-settings-status-inline', 'Testing connection...');
           var params = aiBuildParams();
-          var response = await fetch('/ai/test' + (params ? '?' + params : ''));
+          var response = await fetch('/ai/test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: params,
+          });
           var html = await response.text();
           var wrapper = document.createElement('div');
           wrapper.innerHTML = html;

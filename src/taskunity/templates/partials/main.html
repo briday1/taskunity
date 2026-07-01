@@ -148,6 +148,7 @@
           {% if git.upstream %}
             {% if git.ahead %}<span class="git-badge ahead" title="{{ git.ahead }} commit(s) ahead of {{ git.upstream }}">↑{{ git.ahead }}</span>{% endif %}
             {% if git.behind %}<span class="git-badge behind" title="{{ git.behind }} commit(s) behind {{ git.upstream }}">↓{{ git.behind }}</span>{% endif %}
+            {% if git.dirty %}<span class="git-badge dirty" title="{{ git.dirty }} uncommitted change(s)">●{{ git.dirty }}</span>{% endif %}
             {% if not git.ahead and not git.behind and not git.dirty %}<span class="git-badge ok" title="Up to date with {{ git.upstream }}">synced</span>{% endif %}
           {% else %}
             <span class="git-badge warn" title="No upstream remote configured">no remote</span>
@@ -296,4 +297,3 @@
   ></button>
   <aside id="ai-panel" class="ai-panel" hidden></aside>
 </main>
-<span id="git-sync-indicator" class="git-sync-indicator htmx-indicator" role="status" aria-live="polite">Syncing…</span>
