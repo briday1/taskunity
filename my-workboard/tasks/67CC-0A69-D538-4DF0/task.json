@@ -15,20 +15,7 @@
   "completed_date": null,
   "percent_complete": 35,
   "depends_on": [],
-  "checklist": [
-    {
-      "text": "Automation Script",
-      "done": false
-    },
-    {
-      "text": "Secure Portal",
-      "done": false
-    },
-    {
-      "text": "Cascading Deletion",
-      "done": false
-    }
-  ],
+  "checklist": [],
   "notes": [],
   "attachments": [
     {
