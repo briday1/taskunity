@@ -653,7 +653,8 @@
       }
       var lastTaskPanelUrl = '';
       var lastTaskPanelRequestedAt = 0;
-      var preservedTaskPanelNode = null;
+      var preservedTaskPanelHtml = '';
+      var pendingPanelUrlAfterMainSwap = '';
       var preservedTaskPanelCollapsed = true;
       function setGitSyncPanelTask(taskId) {
         var value = taskId || '';
@@ -709,6 +710,17 @@
         if (panelTarget === '#task-panel' || source) {
           expandTaskPanel();
         }
+        var mainTarget = (source && source.getAttribute ? source.getAttribute('hx-target') : null) || (trigger.getAttribute && trigger.getAttribute('hx-target'));
+        if (mainTarget === '#app-main') {
+          var panelUrlHint = (source && source.dataset ? source.dataset.openPanelUrl : '') || (trigger.dataset ? trigger.dataset.openPanelUrl : '') || '';
+          if (panelUrlHint) {
+            pendingPanelUrlAfterMainSwap = panelUrlHint;
+            lastTaskPanelUrl = panelUrlHint;
+            lastTaskPanelRequestedAt = Date.now();
+            setGitSyncPanelTask('');
+            expandTaskPanel();
+          }
+        }
         if (panelTarget === '#task-panel') {
           var panelUrl = ((source && source.getAttribute && source.getAttribute('hx-get')) || (trigger.getAttribute && trigger.getAttribute('hx-get')) || '');
           if (panelUrl) {
@@ -759,19 +771,30 @@
         if (!target || target.id !== 'app-main') return;
         var main = getMainLayout();
         if (main) preservedTaskPanelCollapsed = main.classList.contains('panel-collapsed');
-        preservedTaskPanelNode = null;
+        var panel = document.getElementById('task-panel');
+        preservedTaskPanelHtml = panel && panelHasContent(panel) ? panel.innerHTML : '';
       });
       document.body.addEventListener('htmx:afterSwap', function (e) {
         var target = e && e.detail ? e.detail.target : null;
         if (!target || target.id !== 'app-main') return;
         var main = getMainLayout();
         var freshPanel = document.getElementById('task-panel');
+        var panelForRestore = freshPanel || document.getElementById('task-panel');
+        if (panelForRestore && !panelHasContent(panelForRestore) && preservedTaskPanelHtml) {
+          panelForRestore.innerHTML = preservedTaskPanelHtml;
+          panelForRestore.classList.remove('side-panel-empty');
+        }
+        preservedTaskPanelHtml = '';
         if (main) {
           main.classList.toggle('panel-collapsed', preservedTaskPanelCollapsed);
         }
         // Expand panel if the fresh panel has content (from selected_milestone or selected_task)
-        if (freshPanel && panelHasContent(freshPanel)) {
+        if (main && freshPanel && panelHasContent(freshPanel)) {
           main.classList.remove('panel-collapsed');
+        }
+        if (pendingPanelUrlAfterMainSwap && window.htmx && typeof window.htmx.ajax === 'function') {
+          window.htmx.ajax('GET', pendingPanelUrlAfterMainSwap, { target: '#task-panel', swap: 'innerHTML' });
+          pendingPanelUrlAfterMainSwap = '';
         }
         if (!lastTaskPanelUrl) return;
         var panel = freshPanel || document.getElementById('task-panel');

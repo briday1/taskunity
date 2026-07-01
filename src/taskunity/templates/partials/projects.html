@@ -13,10 +13,11 @@
           <button
             type="button"
             class="project-open-btn"
-            hx-get="/projects/{{ p.id }}/panel?view=projects{% if filters.show_closed %}&show_closed=1{% endif %}&stale_days={{ filters.stale_days }}"
-            hx-target="#task-panel"
-            hx-swap="innerHTML"
-            title="Open project details for {{ p.name }}"
+            hx-get="/partials/main?view=list&project={{ p.id }}{% if filters.show_closed %}&show_closed=1{% endif %}{% if filters.hide_done %}&hide_done=1{% endif %}&stale_days={{ filters.stale_days }}"
+            hx-target="#app-main"
+            hx-swap="outerHTML"
+            data-open-panel-url="/projects/{{ p.id }}/panel?view=projects{% if filters.show_closed %}&show_closed=1{% endif %}&stale_days={{ filters.stale_days }}"
+            title="View tasks for {{ p.name }}"
           >
               <div class="milestone-list-head">
                 <div class="milestone-list-title">
