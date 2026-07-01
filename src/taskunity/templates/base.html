@@ -588,6 +588,8 @@
         var form = e && e.detail ? e.detail.elt : null;
         if (!form || !form.matches || !form.matches('form[data-git-sync-form]')) return;
         form.dataset.syncing = '1';
+        var chip = form.closest('.git-chip');
+        if (chip) chip.classList.add('syncing');
         var button = form.querySelector('.git-sync-btn');
         if (button) {
           button.disabled = true;
@@ -598,6 +600,8 @@
         var form = e && e.detail ? e.detail.elt : null;
         if (!form || !form.matches || !form.matches('form[data-git-sync-form]')) return;
         delete form.dataset.syncing;
+        var chip = form.closest('.git-chip');
+        if (chip) chip.classList.remove('syncing');
         var button = form.querySelector('.git-sync-btn');
         if (button) {
           button.disabled = false;
@@ -651,9 +655,20 @@
       var lastTaskPanelRequestedAt = 0;
       var preservedTaskPanelNode = null;
       var preservedTaskPanelCollapsed = true;
+      function setGitSyncPanelTask(taskId) {
+        var value = taskId || '';
+        document.querySelectorAll('form[data-git-sync-form] input[name="f_panel_task"]').forEach(function (field) {
+          field.value = value;
+        });
+      }
+      function taskIdFromPanelUrl(panelUrl) {
+        var m = (panelUrl || '').match(/\/tasks\/([^/?]+)\/panel(?:\?|$)/);
+        return m ? decodeURIComponent(m[1]) : '';
+      }
       document.addEventListener('click', function (e) {
         var btn = e.target.closest('[data-panel-collapse]');
         if (!btn) return;
+        setGitSyncPanelTask('');
         collapseTaskPanel();
       });
       document.addEventListener('click', function (e) {
@@ -664,6 +679,12 @@
         if (panelUrl) {
           lastTaskPanelUrl = panelUrl;
           lastTaskPanelRequestedAt = Date.now();
+          var taskId = taskIdFromPanelUrl(panelUrl);
+          if (taskId) {
+            setGitSyncPanelTask(taskId);
+          } else if (/\/milestones\/[^/?]+\/panel(?:\?|$)/.test(panelUrl)) {
+            setGitSyncPanelTask('');
+          }
         }
         if (/\/tasks\/[^/]+\/panel(?:\?|$)/.test(panelUrl)) {
           window.setTimeout(function () {
@@ -693,6 +714,12 @@
           if (panelUrl) {
             lastTaskPanelUrl = panelUrl;
             lastTaskPanelRequestedAt = Date.now();
+            var taskId = taskIdFromPanelUrl(panelUrl);
+            if (taskId) {
+              setGitSyncPanelTask(taskId);
+            } else if (/\/milestones\/[^/?]+\/panel(?:\?|$)/.test(panelUrl)) {
+              setGitSyncPanelTask('');
+            }
           }
         }
       });
@@ -722,6 +749,9 @@
         if (hasContent) {
           expandTaskPanel();
           lastTaskPanelRequestedAt = Date.now();
+          var currentTaskUrl = panel.getAttribute('data-ai-context-url') || '';
+          var currentTaskId = taskIdFromPanelUrl(currentTaskUrl);
+          if (currentTaskId) setGitSyncPanelTask(currentTaskId);
         }
       });
       document.body.addEventListener('htmx:beforeSwap', function (e) {
@@ -747,9 +777,13 @@
         var panel = freshPanel || document.getElementById('task-panel');
         if (!panel) return;
         var recentlyRequested = (Date.now() - lastTaskPanelRequestedAt) < 4500;
-        if (!recentlyRequested) return;
         var hasContent = panelHasContent(panel);
         if (hasContent) return;
+        if (!recentlyRequested) {
+          collapseTaskPanel();
+          setGitSyncPanelTask('');
+          return;
+        }
         expandTaskPanel();
         if (window.htmx && typeof window.htmx.ajax === 'function') {
           window.htmx.ajax('GET', lastTaskPanelUrl, { target: '#task-panel', swap: 'innerHTML' });
@@ -1142,6 +1176,10 @@
       document.body.addEventListener('htmx:beforeSwap', function (e) {
         var target = e && e.detail ? e.detail.target : null;
         if (!target || target.id !== 'app-main') return;
+        if (sessionStorage.getItem(AI_PANEL_OPEN_KEY) !== '1') {
+          preservedAiPanelNode = null;
+          return;
+        }
         var panel = document.getElementById('ai-panel');
         if (!panel || !panelHasContent(panel)) {
           preservedAiPanelNode = null;
@@ -1248,19 +1286,6 @@
 
       syncAiContextFromCurrentPanel();
       updateAiPanelToggle();
-
-      // Auto-hide sync indicator after git sync completes
-      document.addEventListener('htmx:afterRequest', function (e) {
-        var form = e && e.detail && e.detail.xhr && e.detail.xhr.response;
-        var target = e && e.detail ? e.detail.target : null;
-        // Only hide indicator if this was a git sync request (target is #app-main from git-sync-form)
-        if (!target || target.id !== 'app-main') return;
-        var indicator = document.getElementById('git-sync-indicator');
-        if (!indicator) return;
-        setTimeout(function () {
-          indicator.style.display = 'none';
-        }, 1500);
-      });
     })();
   </script>
 </body>

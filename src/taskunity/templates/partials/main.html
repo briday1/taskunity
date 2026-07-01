@@ -148,12 +148,12 @@
           {% if git.upstream %}
             {% if git.ahead %}<span class="git-badge ahead" title="{{ git.ahead }} commit(s) ahead of {{ git.upstream }}">↑{{ git.ahead }}</span>{% endif %}
             {% if git.behind %}<span class="git-badge behind" title="{{ git.behind }} commit(s) behind {{ git.upstream }}">↓{{ git.behind }}</span>{% endif %}
-            {% if not git.ahead and not git.behind and not git.dirty %}<span class="git-badge ok" title="Up to date with {{ git.upstream }}">✓ synced</span>{% endif %}
+            {% if not git.ahead and not git.behind and not git.dirty %}<span class="git-badge ok" title="Up to date with {{ git.upstream }}">synced</span>{% endif %}
           {% else %}
             <span class="git-badge warn" title="No upstream remote configured">no remote</span>
           {% endif %}
-          {% if git.dirty %}<span class="git-badge dirty" title="{{ git.dirty }} uncommitted change(s)">●{{ git.dirty }}</span>{% endif %}
-          <form hx-post="/git/sync" hx-target="#app-main" hx-swap="outerHTML" hx-indicator="#git-sync-indicator" class="git-sync-form" data-git-sync-form>
+          <span class="git-live-spinner" aria-hidden="true"></span>
+          <form hx-post="/git/sync" hx-target="#app-main" hx-swap="outerHTML" class="git-sync-form" data-git-sync-form>
             {% for p in filters.projects %}<input type="hidden" name="f_project" value="{{ p }}">{% endfor %}
             <input type="hidden" name="f_from" value="{{ filters.date_from }}">
             <input type="hidden" name="f_to" value="{{ filters.date_to }}">

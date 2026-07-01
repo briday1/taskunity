@@ -1391,6 +1391,65 @@ Rules:
             },
         }
 
+    def task_panel_context(
+        request: Request,
+        selected_task: Task,
+        *,
+        projects: list[str] | None = None,
+        date_from: str = "",
+        date_to: str = "",
+        q: str = "",
+        view: str = "list",
+        milestone: str = "",
+        show_closed: bool = False,
+        hide_old: bool = False,
+        hide_done: bool = False,
+        stale_days: int = STALE_CLOSED_DAYS,
+    ) -> dict:
+        projects = [p for p in (projects or []) if p]
+        normalize_task_project_refs(workspace)
+        all_projects = load_all_projects(workspace)
+        all_tasks = load_all_tasks(workspace)
+        project_name_by_id = {p.id: p.name for p in all_projects if p.id}
+        for task in all_tasks:
+            if task.project_id and task.project_id in project_name_by_id:
+                task.project = project_name_by_id[task.project_id]
+        if selected_task.project_id and selected_task.project_id in project_name_by_id:
+            selected_task.project = project_name_by_id[selected_task.project_id]
+
+        colors = project_colors(all_projects, all_tasks)
+        return {
+            "request": request,
+            "selected_task": selected_task,
+            "projects": all_projects,
+            "project_colors": colors,
+            "statuses": STATUSES,
+            "task_activity_entries": build_task_activity_entries(selected_task),
+            "task_index": [
+                {
+                    "id": t.id,
+                    "title": t.title,
+                    "status": t.status,
+                    "project": t.project,
+                    "due_date": t.due_date or "",
+                }
+                for t in sort_tasks(all_tasks, "title", "asc")
+            ],
+            "task_titles": {t.id: t.title for t in all_tasks},
+            "filters": {
+                "projects": projects,
+                "date_from": date_from,
+                "date_to": date_to,
+                "q": q,
+                "view": view if view in VIEWS else "list",
+                "milestone": (milestone or "").strip(),
+                "show_closed": bool(show_closed),
+                "hide_old": bool(hide_old),
+                "hide_done": bool(hide_done),
+                "stale_days": stale_days,
+            },
+        }
+
     @app.get("/", response_class=HTMLResponse)
     def index(
         request: Request,
@@ -1483,7 +1542,7 @@ Rules:
         return templates.TemplateResponse(
             request,
             "partials/task_panel.html",
-            context(
+            task_panel_context(
                 request,
                 task,
                 projects=project,

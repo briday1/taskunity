@@ -1,15 +1,15 @@
 <div class="panel-scroll ai-panel-scroll" data-context-title="{{ entity_title }}" data-context-type="{{ context_type }}">
   <div class="panel-heading sticky">
     <div class="task-panel-title-row">
-      <button type="button" class="btn-link task-collapse-btn" data-ai-panel-close title="Close AI assistant" aria-label="Close AI assistant">×</button>
-      <h2>✦ AI Assistant</h2>
+      <button type="button" class="btn-link task-collapse-btn" data-ai-panel-close title="Close AI assistant" aria-label="Close AI assistant">x</button>
+      <h2>AI Assistant</h2>
     </div>
   </div>
 
   {% if ai_cfg.ai_enabled != '1' %}
     <div class="ai-disabled-notice">
       <p>AI assistant is not enabled.</p>
-      <p class="muted">Enable and configure it in <strong>⚙ Settings → AI Assistant</strong>.</p>
+      <p class="muted">Enable and configure it in <strong>Settings -> AI Assistant</strong>.</p>
     </div>
   {% else %}
     <div class="ai-messages" id="ai-messages"></div>
@@ -19,7 +19,7 @@
             hx-post="/ai/chat"
             hx-target="#ai-messages"
             hx-swap="beforeend"
-        hx-indicator="#ai-thinking">
+            hx-indicator="#ai-thinking">
         <input type="hidden" name="ai_enabled" value="{{ ai_cfg.ai_enabled }}">
         <input type="hidden" name="ai_base_url" value="{{ ai_cfg.ai_base_url }}">
         <input type="hidden" name="ai_api_key" value="{{ ai_cfg.ai_api_key }}">
@@ -29,6 +29,7 @@
         <input type="hidden" name="ai_timeout_seconds" value="{{ ai_cfg.ai_timeout_seconds }}">
         <input type="hidden" name="ai_max_tokens" value="{{ ai_cfg.ai_max_tokens }}">
         <input type="hidden" name="ai_temperature" value="{{ ai_cfg.ai_temperature }}">
+
         <input type="hidden" name="context_type" value="{{ context_type }}">
         <input type="hidden" name="entity_id" value="{{ entity_id }}">
         <input type="hidden" name="context_json" value="{{ context_json | e }}">
@@ -55,7 +56,7 @@
                 <option value="milestone">Milestone</option>
               </select>
               <div class="ai-context-search-wrap">
-                <input type="text" id="ai-context-search-input" class="ai-setting-input-sm ai-context-search-input" placeholder="Search as you type…" autocomplete="off">
+                <input type="text" id="ai-context-search-input" class="ai-setting-input-sm ai-context-search-input" placeholder="Search as you type..." autocomplete="off">
                 <div id="ai-context-search-menu" class="ai-context-search-menu" hidden></div>
               </div>
               <button type="button" class="ai-quick-btn" id="ai-context-add-confirm">Add</button>
@@ -67,15 +68,20 @@
           <textarea
             name="user_message"
             class="ai-textarea"
-            placeholder="{% if context_type %}Ask about this {{ context_type }}…{% else %}Ask AI…{% endif %}"
+            placeholder="{% if context_type %}Ask about this {{ context_type }}...{% else %}Ask AI...{% endif %}"
             rows="3"
             required
             onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();this.closest('form').requestSubmit();}"
           ></textarea>
+          <button type="submit" class="ai-send-btn" title="Send">-></button>
+        </div>
+      </form>
+
+      <div id="ai-thinking" class="ai-thinking htmx-indicator">
         <span class="ai-thinking-dot"></span>
-          var rows = getRows(kind).filter(function (row) {
-            return !query || normalize(row.label).indexOf(query) !== -1 || normalize(row.id).indexOf(query) !== -1;
-          }).slice(0, 12);
+        <span class="ai-thinking-dot"></span>
+        <span class="ai-thinking-dot"></span>
+      </div>
     </div>
   {% endif %}
 </div>
@@ -92,9 +98,10 @@
   var searchMenu = document.getElementById('ai-context-search-menu');
   var addConfirm = document.getElementById('ai-context-add-confirm');
   var form = document.getElementById('ai-chat-form');
-            btn.innerHTML = '<span class="ai-context-search-item-main"></span><span class="ai-context-search-item-kind"></span>';
-            btn.querySelector('.ai-context-search-item-main').textContent = row.label;
-            btn.querySelector('.ai-context-search-item-kind').textContent = row.kind;
+  var contextTypeInput = form ? form.querySelector('[name="context_type"]') : null;
+  var entityIdInput = form ? form.querySelector('[name="entity_id"]') : null;
+  var contextJsonInput = form ? form.querySelector('[name="context_json"]') : null;
+
   if (!hidden || !chipsRoot || !optionsJson || !kindSelect || !searchInput || !searchMenu || !addConfirm || !form) return;
 
   var selectedContext = null;
@@ -141,33 +148,35 @@
       return [];
     }
   }
+
   function saveList(list) {
     hidden.value = JSON.stringify(list || []);
     render();
   }
 
   function renderSearchMenu() {
-    if (!searchMenu) return;
     var query = normalize(searchInput.value);
     if (!query) {
       searchMenu.innerHTML = '';
       searchMenu.hidden = true;
       return;
     }
+
     var kind = kindSelect.value || 'task';
     var rows = getRows(kind).filter(function (row) {
       return normalize(row.label).indexOf(query) !== -1 || normalize(row.id).indexOf(query) !== -1;
-    }).slice(0, 8);
+    }).slice(0, 12);
+
     searchMenu.innerHTML = '';
     if (!rows.length) {
       var empty = document.createElement('div');
       empty.className = 'ai-context-search-empty';
-        searchInput.addEventListener('focus', renderSearchMenu);
-        searchInput.addEventListener('click', renderSearchMenu);
+      empty.textContent = 'No matches';
       searchMenu.appendChild(empty);
       searchMenu.hidden = false;
       return;
     }
+
     rows.forEach(function (row) {
       var btn = document.createElement('button');
       btn.type = 'button';
@@ -175,12 +184,15 @@
       btn.dataset.kind = row.kind;
       btn.dataset.id = row.id;
       btn.dataset.label = row.label;
-      btn.innerHTML = '<strong></strong><span></span>';
-      btn.querySelector('strong').textContent = row.label;
-      btn.querySelector('span').textContent = row.kind;
-      if (selectedContext && selectedContext.kind === row.kind && selectedContext.id === row.id) btn.classList.add('is-selected');
+      btn.innerHTML = '<span class="ai-context-search-item-main"></span><span class="ai-context-search-item-kind"></span>';
+      btn.querySelector('.ai-context-search-item-main').textContent = row.label;
+      btn.querySelector('.ai-context-search-item-kind').textContent = row.kind;
+      if (selectedContext && selectedContext.kind === row.kind && selectedContext.id === row.id) {
+        btn.classList.add('is-selected');
+      }
       searchMenu.appendChild(btn);
     });
+
     searchMenu.hidden = false;
   }
 
@@ -198,22 +210,29 @@
       })[0];
       if (fallback) selectedContext = fallback;
     }
+
     if (!selectedContext) return;
+
     var list = parseList();
-    var exists = list.some(function (x) { return x.kind === selectedContext.kind && x.id === selectedContext.id; });
+    var exists = list.some(function (x) {
+      return x.kind === selectedContext.kind && x.id === selectedContext.id;
+    });
     if (!exists) {
       list.push({ kind: selectedContext.kind, id: selectedContext.id, label: selectedContext.label });
       saveList(list);
     }
+
     selectedContext = null;
     searchInput.value = '';
     renderSearchMenu();
   }
+
   function render() {
     var list = parseList();
     var current = getCurrentContext();
     var merged = (current ? [current] : []).concat(list || []);
     chipsRoot.innerHTML = '';
+
     merged.forEach(function (item, index) {
       var chip = document.createElement('button');
       chip.type = 'button';
@@ -222,7 +241,7 @@
       else chip.setAttribute('data-remove-index', String(index - 1));
       var label = (item.kind || 'context') + ': ' + (item.label || item.id || '');
       chip.setAttribute('aria-label', 'Remove ' + label + ' context');
-      chip.innerHTML = '<span class="ai-context-chip-text"></span><span class="ai-context-chip-x" aria-hidden="true">×</span>';
+      chip.innerHTML = '<span class="ai-context-chip-text"></span><span class="ai-context-chip-x" aria-hidden="true">x</span>';
       chip.querySelector('.ai-context-chip-text').textContent = label;
       chipsRoot.appendChild(chip);
     });
@@ -241,11 +260,14 @@
     renderSearchMenu();
     searchInput.focus();
   });
+
   searchInput.addEventListener('input', function () {
     selectedContext = null;
     renderSearchMenu();
   });
+
   searchInput.addEventListener('focus', renderSearchMenu);
+  searchInput.addEventListener('click', renderSearchMenu);
   addConfirm.addEventListener('click', addSelectedContext);
 
   document.addEventListener('keydown', function (e) {
@@ -253,7 +275,9 @@
     if (e.key === 'Enter') {
       e.preventDefault();
       addSelectedContext();
-    } else if (e.key === 'Escape') {
+      return;
+    }
+    if (e.key === 'Escape') {
       searchMenu.hidden = true;
     }
   });
@@ -265,6 +289,7 @@
       searchInput.focus();
       return;
     }
+
     if (searchMenu && !searchMenu.contains(e.target) && e.target !== searchInput) {
       searchMenu.hidden = true;
     }
@@ -285,6 +310,7 @@
       render();
       return;
     }
+
     var rm = e.target.closest('[data-remove-index]');
     if (!rm) return;
     var idx = parseInt(rm.getAttribute('data-remove-index') || '-1', 10);

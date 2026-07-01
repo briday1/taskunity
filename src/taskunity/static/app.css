@@ -676,10 +676,22 @@ button:focus-visible { outline: none; box-shadow: var(--ring); }
   box-shadow: var(--shadow-sm);
   font-size: .78rem;
   color: var(--text);
+  position: relative;
 }
 .git-chip svg { color: var(--muted); flex: none; }
 .git-chip.untracked { color: var(--muted); }
 .git-branch { font-weight: 650; font-variant-numeric: tabular-nums; }
+.git-live-spinner {
+  display: none;
+  width: .95rem;
+  height: .95rem;
+  border-radius: 999px;
+  border: 2px solid color-mix(in srgb, var(--accent) 35%, var(--line));
+  border-top-color: var(--accent);
+  animation: gitSpin .7s linear infinite;
+}
+.git-chip.syncing .git-live-spinner { display: inline-block; }
+.git-chip.syncing .git-badge { display: none; }
 .git-badge {
   display: inline-flex;
   align-items: center;
@@ -715,15 +727,10 @@ button:focus-visible { outline: none; box-shadow: var(--ring); }
 .git-sync-working { display: none !important; }
 .git-sync-form.htmx-request .git-sync-label { display: none; }
 .git-sync-form.htmx-request .git-sync-working { display: inline !important; }
-.git-sync-indicator {
-  display: none;
-  align-items: center;
-  font-size: .74rem;
-  font-weight: 600;
-  color: var(--muted);
-}
-.git-sync-indicator.htmx-request {
-  display: inline-flex;
+
+@keyframes gitSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 .git-sync-btn.secondary {
   background: var(--bg-soft);

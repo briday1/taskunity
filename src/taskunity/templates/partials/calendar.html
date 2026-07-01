@@ -14,7 +14,7 @@
             <span class="cal-date">{{ day.date.day }}</span>
             {% for task in day.tasks %}
               <button type="button" class="cal-task {{ task.status }}"
-                hx-get="/partials/main?view={{ filters.view }}{% if filters.query %}&{{ filters.query }}{% endif %}&panel_task={{ task.id }}" hx-target="#app-main" hx-swap="outerHTML"
+                hx-get="/tasks/{{ task.id }}/panel?view={{ filters.view }}{% if filters.query %}&{{ filters.query }}{% endif %}" hx-target="#task-panel" hx-swap="innerHTML"
                 title="{{ task.title }}{% if task.project %} · {{ task.project }}{% endif %}">{{ task.title }}</button>
             {% endfor %}
           </div>
