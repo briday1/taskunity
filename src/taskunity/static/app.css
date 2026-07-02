@@ -1,7 +1,7 @@
 :root {
   color-scheme: light;
   --topbar-height: 4.4rem;
-  --controls-height: 6.1rem;
+  --controls-height: 5.3rem;
   --bg: #eef1f7;
   --bg-soft: #f7f9fc;
   --card: #ffffff;
@@ -127,6 +127,15 @@ html[data-theme="dark"] .topbar {
   box-shadow: var(--shadow-md);
   flex: none;
 }
+.brand-settings { position: relative; display: inline-flex; }
+button.settings-btn.brand-mark {
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+button.settings-btn.brand-mark:hover { filter: brightness(.96); background: linear-gradient(135deg, var(--accent), #6f8df0); color: #fff; }
+button.settings-btn.brand-mark svg { width: 24px; height: 24px; }
+.settings-popup.settings-popup-left { right: auto; left: 0; }
 h1, h2, h3, p { margin-top: 0; }
 .topbar h1 { font-size: 1.15rem; margin-bottom: .1rem; letter-spacing: -.01em; }
 .topbar p { margin-bottom: 0; color: var(--muted); font-size: .85rem; }
@@ -194,7 +203,8 @@ h1, h2, h3, p { margin-top: 0; }
 .settings-anchor { position: relative; }
 .topbar-actions { display: flex; align-items: center; gap: .6rem; }
 .topbar-actions .git-chip { flex: none; }
-.topbar-ai-toggle { font-size: 1rem; line-height: 1; }
+.topbar-ai-toggle { font-size: 1rem; line-height: 1; display: inline-flex; align-items: center; justify-content: center; padding: .34rem .5rem; }
+.topbar-ai-toggle .ai-icon { width: 22px; height: 22px; display: block; }
 .new-task-form { display: flex; gap: .5rem; }
 .new-task-form .new-task-btn { white-space: nowrap; }
 input, select, textarea, button {
@@ -470,6 +480,113 @@ button:focus-visible { outline: none; box-shadow: var(--ring); }
   color: var(--muted);
 }
 .export-group .export-btn { padding: .3rem .6rem; font-size: .78rem; }
+.content-toolbar .toolbar-main {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  flex-wrap: nowrap;
+  margin-bottom: .45rem;
+}
+.content-toolbar .toolbar-main .view-switch {
+  flex: 0 1 auto;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  min-width: 0;
+  max-width: 100%;
+  scrollbar-width: thin;
+}
+.content-toolbar .toolbar-main .spacer { flex: 1 1 .5rem; min-width: .25rem; }
+.content-toolbar .toolbar-main .filter-menu,
+.content-toolbar .toolbar-main .new-menu,
+.content-toolbar .toolbar-main .toolbar-menu { flex: 0 0 auto; }
+.content-toolbar .toolbar-main .filter-menu .filter-pop { left: auto; right: 0; }
+
+/* "+ New" create menu + generic dropdown menu items */
+.toolbar-menu-pop form { display: block; margin: 0; }
+.toolbar-menu-pop .menu-item {
+  display: block;
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+  background: transparent;
+  color: var(--text);
+  border: 0;
+  box-shadow: none;
+  padding: .4rem .55rem;
+  border-radius: 8px;
+  font-size: .85rem;
+  font-weight: 600;
+}
+.toolbar-menu-pop .menu-item:hover { background: var(--bg-soft); filter: none; }
+.new-menu .toolbar-menu-pop { left: 0; right: auto; min-width: 140px; }
+.new-menu > summary {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
+  padding: .45rem .7rem;
+  gap: .3rem;
+}
+/* Plus icon drawn in CSS (two crossing bars) so it stays crisp and centered
+   regardless of the platform font. */
+.new-plus-icon {
+  display: inline-block;
+  width: .8rem;
+  height: .8rem;
+  background:
+    linear-gradient(currentColor, currentColor) center / 100% 2px no-repeat,
+    linear-gradient(currentColor, currentColor) center / 2px 100% no-repeat;
+  border-radius: 1px;
+}
+.new-menu > summary::after { color: var(--accent); font-size: .62rem; }
+.new-menu[open] > summary { background: var(--accent-soft); }
+.toolbar-pills {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  min-height: 1.85rem;
+}
+.toolbar-menu { position: relative; }
+.toolbar-menu > summary {
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: .45rem .8rem;
+  font-size: .85rem;
+  font-weight: 650;
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+  box-shadow: var(--shadow-sm);
+  transition: background .14s ease, border-color .14s ease;
+}
+.toolbar-menu > summary::-webkit-details-marker { display: none; }
+.toolbar-menu > summary::after { content: "\25be"; font-size: .7rem; color: var(--muted); }
+.toolbar-menu > summary:hover { background: var(--bg-soft); }
+.toolbar-menu[open] > summary { border-color: var(--accent); color: var(--accent); }
+.toolbar-menu-pop {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + .45rem);
+  right: 0;
+  min-width: 150px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  padding: .4rem;
+  display: grid;
+  gap: .2rem;
+}
+.toolbar-menu:not([open]) .toolbar-menu-pop { display: none; }
+.toolbar-menu-pop .btn-link { justify-content: flex-start; text-align: left; }
 .filter-bar {
   display: flex;
   flex-wrap: wrap;
@@ -1171,26 +1288,33 @@ button:focus-visible { outline: none; box-shadow: var(--ring); }
 }
 .checklist-item {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: .45rem;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  gap: .4rem;
   align-items: center;
-}
-.checklist-toggle-form,
-.checklist-delete-form { margin: 0; }
-.check-toggle {
-  width: 100%;
-  display: inline-grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: .55rem;
-  align-items: center;
-  text-align: left;
   background: var(--bg-soft);
   border: 1px solid var(--line);
-  color: var(--text);
-  box-shadow: none;
-  padding: .45rem .6rem;
+  border-radius: var(--radius-sm);
+  padding: .25rem .4rem;
 }
-.check-toggle:hover { filter: none; border-color: color-mix(in srgb, var(--line) 55%, var(--accent)); }
+.checklist-item.checklist-dragging { opacity: .5; }
+.check-drag {
+  cursor: grab;
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0 .1rem;
+  user-select: none;
+  touch-action: none;
+}
+.check-drag:active { cursor: grabbing; }
+.check-box {
+  width: auto;
+  padding: .2rem;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+.check-box:hover { filter: none; background: transparent; }
 .check-mark {
   width: 1.2rem;
   height: 1.2rem;
@@ -1203,20 +1327,32 @@ button:focus-visible { outline: none; box-shadow: var(--ring); }
   color: var(--accent);
   background: #fff;
 }
-.check-text { min-width: 0; word-break: break-word; }
-.checklist-item.done .check-toggle {
-  background: color-mix(in srgb, var(--done) 10%, #fff);
-  border-color: color-mix(in srgb, var(--done) 35%, var(--line));
+.check-rename {
+  min-width: 0;
+  width: 100%;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text);
+  box-shadow: none;
+  padding: .3rem .4rem;
+  border-radius: var(--radius-sm);
+  font: inherit;
+}
+.check-rename:hover { border-color: var(--line); }
+.check-rename:focus {
+  border-color: color-mix(in srgb, var(--line) 55%, var(--accent));
+  background: #fff;
 }
 .checklist-item.done .check-mark {
   background: color-mix(in srgb, var(--done) 22%, #fff);
   border-color: color-mix(in srgb, var(--done) 48%, var(--line));
   color: var(--done);
 }
-.checklist-item.done .check-text {
+.checklist-item.done .check-rename {
   color: color-mix(in srgb, var(--text) 65%, var(--muted));
   text-decoration: line-through;
 }
+.checklist-empty { padding: .3rem .1rem; }
 .check-delete {
   width: 1.9rem;
   height: 1.9rem;
@@ -1498,39 +1634,157 @@ html[data-theme="dark"] .cal-date {
     color: #8892a3;
   }
 }
-@media (max-width: 1050px) {
-  .layout { grid-template-columns: 1fr; }
-  .pane-resizer { display: none; }
-  .side-panel { position: static; max-height: none; }
+@media (max-width: 1120px) {
+  .layout,
+  .layout.ai-panel-collapsed,
+  .layout.panel-collapsed,
+  .layout.panel-collapsed:not(.ai-panel-collapsed) {
+    grid-template-columns: 1fr;
+  }
+  .pane-resizer, .ai-pane-resizer { display: none; }
+  .layout .side-panel,
+  .layout .ai-panel {
+    position: sticky;
+    top: calc(var(--topbar-height) + .6rem);
+    width: 100%;
+    max-width: 100%;
+    height: calc(100vh - var(--topbar-height) - 1.2rem);
+    max-height: calc(100vh - var(--topbar-height) - 1.2rem);
+    overflow: hidden;
+  }
   .panel-scroll { max-height: none; }
-  .content { padding-top: calc(var(--controls-height) + .25rem); }
+  /* Let the toolbar flow in normal document order so it can never overlap or
+     trap content behind the fixed header at narrow widths. */
+  .content { padding-top: 0; }
   .content-toolbar {
+    position: static !important;
+    top: auto;
+    left: auto;
+    right: auto;
+    min-height: 0;
+    margin-bottom: .6rem;
+  }
+  .content-toolbar::before { display: none; }
+  .content-toolbar .toolbar-main { flex-wrap: wrap; }
+  /* In focus mode on the main pane there are no side panes, so the toolbar can
+     float again (sticky under the top bar) like it does on the full layout. */
+  body.has-focus-bar .layout[data-focus="main"] .content-toolbar {
+    position: sticky !important;
     top: var(--topbar-height);
-    left: 1.4rem;
-    right: 1.4rem;
+    left: auto;
+    right: auto;
+    z-index: 8;
+    background: var(--bg);
+    margin-bottom: .3rem;
   }
   .board, .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* Tighten the consolidated toolbar as horizontal room shrinks */
+@media (max-width: 820px) {
+  .content-toolbar .toolbar-main { gap: .35rem; }
+  .view-switch button { padding: .38rem .6rem; font-size: .8rem; }
+  .toolbar-menu > summary,
+  .filter-menu > summary { padding: .4rem .6rem; font-size: .8rem; }
+}
 @media (max-width: 700px) {
-  .topbar { flex-direction: column; align-items: stretch; }
-  .new-task-form { width: 100%; }
-  .new-task-form .new-task-btn { width: 100%; }
-  .view-primary {
-    width: 100%;
-  }
-  .view-primary .new-task-form {
-    width: auto;
-  }
-  .view-primary .new-task-form .new-task-btn {
-    width: auto;
-  }
   .board, .summary-grid { grid-template-columns: 1fr; }
   .timeline-row { grid-template-columns: 1fr; }
   .layout { padding: .5rem; }
-  .content { padding-top: calc(var(--controls-height) + .6rem); }
-  .content-toolbar {
-    left: .5rem;
-    right: .5rem;
+  .topbar { padding: .7rem .8rem; gap: .5rem; }
+  .brand p { display: none; }
+}
+
+/* Focus switcher: lives centered in the top bar, shown only when panes must
+   be switched at narrower widths. */
+.focus-bar {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 12;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: .12rem;
+  padding: .2rem .35rem .28rem;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
+body.has-focus-bar .focus-bar { display: inline-flex; }
+.focus-bar-row { display: inline-flex; align-items: center; gap: .2rem; }
+.focus-bar-label {
+  font-size: .62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1;
+}
+.focus-bar .focus-btn {
+  background: transparent;
+  color: var(--muted);
+  border: 0;
+  box-shadow: none;
+  border-radius: var(--radius-pill);
+  padding: .3rem .85rem;
+  font-size: .8rem;
+  font-weight: 650;
+}
+.focus-bar .focus-btn.active { background: var(--accent); color: #fff; box-shadow: var(--shadow-sm); }
+.focus-bar .focus-btn:not(.active):hover { background: var(--accent-soft); color: var(--accent); }
+.focus-bar .focus-btn[disabled] { opacity: .4; cursor: default; }
+
+/* Loading placeholder for the side panel */
+.panel-loading { display: flex; align-items: center; gap: .6rem; }
+.panel-spinner {
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+  border: 2px solid var(--line);
+  border-top-color: var(--accent);
+  animation: panel-spin .7s linear infinite;
+  flex: none;
+}
+@keyframes panel-spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 1120px) {
+  .layout[data-focus="main"] .side-panel,
+  .layout[data-focus="main"] .ai-panel { display: none !important; }
+  .layout[data-focus="side"] .content,
+  .layout[data-focus="side"] .ai-panel { display: none !important; }
+  .layout[data-focus="ai"] .content,
+  .layout[data-focus="ai"] .side-panel { display: none !important; }
+}
+
+/* Group tier: the main board is too squeezed to sit alongside both sidebars,
+   so we switch between the board and the two sidebars shown together. */
+@media (min-width: 1121px) and (max-width: 1400px) {
+  body.has-focus-bar .layout[data-focus="main"] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  body.has-focus-bar .layout[data-focus="main"] .pane-resizer,
+  body.has-focus-bar .layout[data-focus="main"] .ai-pane-resizer { display: none; }
+  /* Details + AI share the view with a working resizer between them. The main
+     board and its (now unused) left resizer are hidden; the AI resizer stays
+     live and drives --ai-pane-width, so the split can be dragged. */
+  body.has-focus-bar .layout[data-focus="both"] {
+    grid-template-columns: minmax(0, 1fr) 10px var(--ai-pane-width, 420px);
+    column-gap: .55rem;
+  }
+  body.has-focus-bar .layout[data-focus="main"] .side-panel,
+  body.has-focus-bar .layout[data-focus="main"] .ai-panel { display: none !important; }
+  body.has-focus-bar .layout[data-focus="both"] .content,
+  body.has-focus-bar .layout[data-focus="both"] .pane-resizer:not(.ai-pane-resizer) { display: none !important; }
+  body.has-focus-bar .layout[data-focus="both"] .ai-pane-resizer { display: block; }
+  /* Keep the panes' desktop sticky/fixed-height scroll behaviour; the side pane
+     fills the flexible track while the AI pane keeps its resizable width. */
+  body.has-focus-bar .layout[data-focus="both"] .side-panel {
+    width: auto;
+    max-width: none;
   }
 }
 

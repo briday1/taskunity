@@ -1,12 +1,37 @@
-<main id="app-main" class="layout ai-panel-collapsed{% if not selected_task and not selected_milestone %} panel-collapsed{% endif %}" data-resizable-layout>
+<main id="app-main" class="layout ai-panel-collapsed{% if not selected_task and not selected_milestone and not selected_project %} panel-collapsed{% endif %}" data-resizable-layout>
   <section class="content">
     <div class="content-toolbar">
-    <div class="filter-bar">
-      <div class="export-group">
-        <span class="export-label">Export</span>
-        <a class="btn-link export-btn" href="/export/csv{% if filters.query %}?{{ filters.query }}{% endif %}">.csv</a>
-        <a class="btn-link export-btn" href="/export/json{% if filters.query %}?{{ filters.query }}{% endif %}">.json</a>
+    <div class="toolbar-main">
+      <div class="view-switch">
+        <button class="{% if filters.view == 'list' %}active{% endif %}" hx-get="/partials/main?view=list{% if filters.query %}&{{ filters.query }}{% endif %}{% if filters.panel_task %}&panel_task={{ filters.panel_task }}{% endif %}" hx-target="#app-main" hx-swap="outerHTML">Task List</button>
+        <button class="{% if filters.view == 'board' %}active{% endif %}" hx-get="/partials/main?view=board{% if filters.query %}&{{ filters.query }}{% endif %}{% if filters.panel_task %}&panel_task={{ filters.panel_task }}{% endif %}" hx-target="#app-main" hx-swap="outerHTML">Task Board</button>
+        <button class="{% if filters.view == 'gantt' %}active{% endif %}" hx-get="/partials/main?view=gantt{% if filters.query %}&{{ filters.query }}{% endif %}{% if filters.panel_task %}&panel_task={{ filters.panel_task }}{% endif %}" hx-target="#app-main" hx-swap="outerHTML">Gantt</button>
+        <button class="{% if filters.view == 'calendar' %}active{% endif %}" hx-get="/partials/main?view=calendar{% if filters.query %}&{{ filters.query }}{% endif %}{% if filters.panel_task %}&panel_task={{ filters.panel_task }}{% endif %}" hx-target="#app-main" hx-swap="outerHTML">Calendar</button>
+        <button class="{% if filters.view == 'milestones' %}active{% endif %}" hx-get="/partials/main?view=milestones{% if filters.query %}&{{ filters.query }}{% endif %}{% if filters.panel_task %}&panel_task={{ filters.panel_task }}{% endif %}" hx-target="#app-main" hx-swap="outerHTML">Milestones</button>
+        <button class="{% if filters.view == 'projects' %}active{% endif %}" hx-get="/partials/main?view=projects{% if filters.query %}&{{ filters.query }}{% endif %}{% if filters.panel_task %}&panel_task={{ filters.panel_task }}{% endif %}" hx-target="#app-main" hx-swap="outerHTML">Projects</button>
       </div>
+      <details class="toolbar-menu new-menu" data-menu>
+        <summary class="new-plus" title="Create new" aria-label="Create new"><span class="new-plus-icon" aria-hidden="true"></span></summary>
+        <div class="toolbar-menu-pop">
+          <button type="button" class="menu-item" data-menu-item data-panel-open="1"
+            hx-get="/new/task/panel?view={{ filters.view }}&milestone={{ filters.milestone }}{% if filters.show_closed %}&show_closed=1{% endif %}&stale_days={{ filters.stale_days }}"
+            hx-target="#task-panel" hx-swap="innerHTML">Task</button>
+          <button type="button" class="menu-item" data-menu-item data-panel-open="1"
+            hx-get="/new/milestone/panel?view={{ filters.view }}{% if filters.show_closed %}&show_closed=1{% endif %}&stale_days={{ filters.stale_days }}"
+            hx-target="#task-panel" hx-swap="innerHTML">Milestone</button>
+          <button type="button" class="menu-item" data-menu-item data-panel-open="1"
+            hx-get="/new/project/panel?view={{ filters.view }}{% if filters.show_closed %}&show_closed=1{% endif %}&stale_days={{ filters.stale_days }}"
+            hx-target="#task-panel" hx-swap="innerHTML">Project</button>
+        </div>
+      </details>
+      <span class="spacer"></span>
+      <details class="toolbar-menu export-menu">
+        <summary>Export</summary>
+        <div class="toolbar-menu-pop">
+          <a class="btn-link export-btn" href="/export/csv{% if filters.query %}?{{ filters.query }}{% endif %}">.csv</a>
+          <a class="btn-link export-btn" href="/export/json{% if filters.query %}?{{ filters.query }}{% endif %}">.json</a>
+        </div>
+      </details>
       <details class="filter-menu">
         <summary>
           <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M3 5h18l-7 8v6l-4 2v-8z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
@@ -121,19 +146,17 @@
           </form>
         </div>
       </details>
+    </div>
 
-      <div class="pills">
-        {% for pill in filters.pills %}
-          <button class="pill" {% if pill.color %}style="background: {{ pill.color }}22; border-color: {{ pill.color }}; color: {{ pill.color }}"{% endif %} hx-get="/partials/main?{{ pill.remove }}" hx-target="#app-main" hx-swap="outerHTML">{{ pill.label }}<span class="x">×</span></button>
-        {% else %}
-          <span class="muted no-filters">No filters applied</span>
-        {% endfor %}
-        {% if filters.pills %}
-          <button class="pill clear" hx-get="/partials/main?view={{ filters.view }}" hx-target="#app-main" hx-swap="outerHTML">Clear all</button>
-        {% endif %}
-      </div>
-
-      <span class="spacer"></span>
+    <div class="toolbar-pills">
+      {% for pill in filters.pills %}
+        <button class="pill" {% if pill.color %}style="background: {{ pill.color }}22; border-color: {{ pill.color }}; color: {{ pill.color }}"{% endif %} hx-get="/partials/main?{{ pill.remove }}" hx-target="#app-main" hx-swap="outerHTML">{{ pill.label }}<span class="x">×</span></button>
+      {% else %}
+        <span class="muted no-filters">No filters applied</span>
+      {% endfor %}
+      {% if filters.pills %}
+        <button class="pill clear" hx-get="/partials/main?view={{ filters.view }}" hx-target="#app-main" hx-swap="outerHTML">Clear all</button>
+      {% endif %}
     </div>
 
     {% if git_message and git_message_level == 'error' %}
@@ -144,33 +167,6 @@
       </div>
     {% endif %}
 
-    <div class="view-bar">
-      <div class="view-primary">
-        <div class="view-switch">
-          <button class="{% if filters.view == 'list' %}active{% endif %}" hx-get="/partials/main?view=list{% if filters.query %}&{{ filters.query }}{% endif %}{% if filters.panel_task %}&panel_task={{ filters.panel_task }}{% endif %}" hx-target="#app-main" hx-swap="outerHTML">Task List</button>
-          <button class="{% if filters.view == 'board' %}active{% endif %}" hx-get="/partials/main?view=board{% if filters.query %}&{{ filters.query }}{% endif %}{% if filters.panel_task %}&panel_task={{ filters.panel_task }}{% endif %}" hx-target="#app-main" hx-swap="outerHTML">Task Board</button>
-          <button class="{% if filters.view == 'gantt' %}active{% endif %}" hx-get="/partials/main?view=gantt{% if filters.query %}&{{ filters.query }}{% endif %}{% if filters.panel_task %}&panel_task={{ filters.panel_task }}{% endif %}" hx-target="#app-main" hx-swap="outerHTML">Gantt</button>
-          <button class="{% if filters.view == 'calendar' %}active{% endif %}" hx-get="/partials/main?view=calendar{% if filters.query %}&{{ filters.query }}{% endif %}{% if filters.panel_task %}&panel_task={{ filters.panel_task }}{% endif %}" hx-target="#app-main" hx-swap="outerHTML">Calendar</button>
-          <button class="{% if filters.view == 'milestones' %}active{% endif %}" hx-get="/partials/main?view=milestones{% if filters.query %}&{{ filters.query }}{% endif %}{% if filters.panel_task %}&panel_task={{ filters.panel_task }}{% endif %}" hx-target="#app-main" hx-swap="outerHTML">Milestones</button>
-          <button class="{% if filters.view == 'projects' %}active{% endif %}" hx-get="/partials/main?view=projects{% if filters.query %}&{{ filters.query }}{% endif %}{% if filters.panel_task %}&panel_task={{ filters.panel_task }}{% endif %}" hx-target="#app-main" hx-swap="outerHTML">Projects</button>
-        </div>
-        <form class="new-task-form" hx-post="/tasks/create" hx-target="#app-main" hx-swap="outerHTML">
-          <input type="hidden" name="title" value="New task">
-          {% for p in filters.projects %}<input type="hidden" name="f_project" value="{{ p }}">{% endfor %}
-          <input type="hidden" name="f_from" value="{{ filters.date_from }}">
-          <input type="hidden" name="f_to" value="{{ filters.date_to }}">
-          <input type="hidden" name="f_q" value="{{ filters.q }}">
-          <input type="hidden" name="f_view" value="{{ filters.view }}">
-          <input type="hidden" name="f_milestone" value="{{ filters.milestone }}">
-          <input type="hidden" name="f_show_closed" value="{% if filters.show_closed %}1{% endif %}">
-          <input type="hidden" name="f_hide_done" value="{% if filters.hide_done %}1{% endif %}">
-          <input type="hidden" name="f_stale_days" value="{{ filters.stale_days }}">
-          <input type="hidden" name="f_calendar_month" value="{{ filters.calendar_month }}">
-          <input type="hidden" name="f_calendar_year" value="{{ filters.calendar_year }}">
-          <button type="submit" class="new-task-btn">New task</button>
-        </form>
-      </div>
-    </div>
     </div>
 
     {% if selected_milestone and filters.view != 'milestones' and filters.view != 'projects' %}
@@ -236,11 +232,13 @@
     title="Drag to resize details pane. Double-click to reset."
     aria-orientation="vertical"
   ></button>
-  <aside id="task-panel" class="side-panel{% if not selected_task and not selected_milestone %} side-panel-empty{% endif %}">
+  <aside id="task-panel" class="side-panel{% if not selected_task and not selected_milestone and not selected_project %} side-panel-empty{% endif %}">
     {% if selected_task %}
       {% include "partials/task_panel.html" %}
     {% elif selected_milestone %}
       {% include "partials/milestone_panel.html" %}
+    {% elif selected_project %}
+      {% include "partials/project_panel.html" %}
     {% endif %}
   </aside>
   <button

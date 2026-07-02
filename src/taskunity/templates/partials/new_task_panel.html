@@ -1,0 +1,56 @@
+<div class="panel-scroll">
+  <div class="panel-heading sticky">
+    <div class="task-panel-title-row">
+      <button type="button" class="btn-link task-collapse-btn" data-panel-collapse title="Close" aria-label="Close">×</button>
+      <h2>New Task</h2>
+    </div>
+  </div>
+
+  <form hx-post="/tasks/create" hx-target="#app-main" hx-swap="outerHTML" class="task-form" style="margin-top:.95rem">
+    {% for p in filters.projects %}<input type="hidden" name="f_project" value="{{ p }}">{% endfor %}
+    <input type="hidden" name="f_from" value="{{ filters.date_from }}">
+    <input type="hidden" name="f_to" value="{{ filters.date_to }}">
+    <input type="hidden" name="f_q" value="{{ filters.q }}">
+    <input type="hidden" name="f_view" value="{{ filters.view }}">
+    <input type="hidden" name="f_milestone" value="{{ filters.milestone }}">
+    <input type="hidden" name="f_show_closed" value="{% if filters.show_closed %}1{% endif %}">
+    <input type="hidden" name="f_hide_done" value="{% if filters.hide_done %}1{% endif %}">
+    <input type="hidden" name="f_stale_days" value="{{ filters.stale_days }}">
+
+    <label>Title<input name="title" value="" placeholder="Task title…" required autofocus></label>
+
+    <label class="field-label">Project</label>
+    <div class="project-picker" data-project-picker>
+      <input type="hidden" name="project" value="">
+      <details class="project-dd">
+        <summary>
+          <span class="project-dd-current"><span class="muted">Select a project…</span></span>
+          <span class="chev" aria-hidden="true">▾</span>
+        </summary>
+        <div class="project-dd-menu">
+          {% for p in projects %}
+            <button type="button" class="project-dd-item" data-value="{{ p.id }}" data-label="{{ p.name }}" data-color="{{ p.color }}">
+              <span class="swatch" style="background: {{ p.color }}"></span>{{ p.name }}
+            </button>
+          {% endfor %}
+          <div class="project-dd-new">
+            <input type="text" class="project-dd-input" placeholder="New project name, press Enter…">
+          </div>
+        </div>
+      </details>
+    </div>
+
+    <label>Summary<textarea name="summary" rows="2"></textarea></label>
+    <label>Description<textarea name="description" rows="5"></textarea></label>
+    <div class="form-grid">
+      <label>Start date<input type="date" name="start_date" value=""></label>
+      <label>Due date<input type="date" name="due_date" value=""></label>
+    </div>
+    <label>Tags, comma-separated<input name="tags" value=""></label>
+
+    <div class="panel-actions-row">
+      <button type="submit">Save Task</button>
+    </div>
+    <p class="muted draft-hint">Checklist, activity, and dependencies become available once you save.</p>
+  </form>
+</div>

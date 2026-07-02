@@ -1,0 +1,31 @@
+<ul class="checklist-items" id="checklist-items" data-task-id="{{ selected_task.id }}">
+  {% for item in selected_task.checklist %}
+    <li class="checklist-item {% if item.done %}done{% endif %}" data-index="{{ loop.index0 }}">
+      <span class="check-drag" aria-hidden="true" title="Drag to reorder">⠿</span>
+      <button type="button" class="check-box"
+        hx-post="/tasks/{{ selected_task.id }}/checklist/{{ loop.index0 }}/toggle"
+        hx-target="#checklist-body" hx-swap="innerHTML"
+        aria-label="Toggle done" aria-pressed="{{ 'true' if item.done else 'false' }}">
+        <span class="check-mark">{% if item.done %}✓{% endif %}</span>
+      </button>
+      <input class="check-rename" value="{{ item.text }}" name="item_text"
+        aria-label="Checklist item text" autocomplete="off"
+        hx-post="/tasks/{{ selected_task.id }}/checklist/{{ loop.index0 }}/rename"
+        hx-trigger="change" hx-target="#checklist-body" hx-swap="innerHTML">
+      <button type="button" class="check-delete"
+        hx-post="/tasks/{{ selected_task.id }}/checklist/{{ loop.index0 }}/delete"
+        hx-target="#checklist-body" hx-swap="innerHTML"
+        aria-label="Remove checklist item">×</button>
+    </li>
+  {% else %}
+    <li class="muted checklist-empty">No checklist items yet.</li>
+  {% endfor %}
+</ul>
+<form class="checklist-add-form"
+  hx-post="/tasks/{{ selected_task.id }}/checklist/add"
+  hx-target="#checklist-body" hx-swap="innerHTML"
+  hx-on::after-request="this.reset()">
+  <input name="item_text" class="checklist-add-input" placeholder="Add checklist item" autocomplete="off" required>
+  <button type="submit">Add item</button>
+</form>
+{% if git is defined and hx_request %}{% with git_chip_oob = true %}{% include "partials/git_chip.html" %}{% endwith %}{% endif %}

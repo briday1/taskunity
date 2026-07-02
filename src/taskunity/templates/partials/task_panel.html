@@ -99,53 +99,10 @@
   <section class="subsection checklist-section">
     <div class="checklist-head">
       <h3>Checklist</h3>
-      <span class="muted">Click to mark done</span>
     </div>
-    <ul class="checklist-items">
-      {% for item in selected_task.checklist %}
-        <li class="checklist-item {% if item.done %}done{% endif %}">
-          <form hx-post="/tasks/{{ selected_task.id }}/checklist/{{ loop.index0 }}/toggle" hx-target="#app-main" hx-swap="outerHTML" class="checklist-toggle-form">
-            {% for p in filters.projects %}<input type="hidden" name="f_project" value="{{ p }}">{% endfor %}
-            <input type="hidden" name="f_from" value="{{ filters.date_from }}">
-            <input type="hidden" name="f_to" value="{{ filters.date_to }}">
-            <input type="hidden" name="f_q" value="{{ filters.q }}">
-            <input type="hidden" name="f_view" value="{{ filters.view }}">
-            <input type="hidden" name="f_milestone" value="{{ filters.milestone }}">
-            <input type="hidden" name="f_show_closed" value="{% if filters.show_closed %}1{% endif %}">
-            <input type="hidden" name="f_stale_days" value="{{ filters.stale_days }}">
-            <button type="submit" class="check-toggle" aria-label="Toggle checklist item">
-              <span class="check-mark">{% if item.done %}✓{% endif %}</span>
-              <span class="check-text">{{ item.text }}</span>
-            </button>
-          </form>
-          <form hx-post="/tasks/{{ selected_task.id }}/checklist/{{ loop.index0 }}/delete" hx-target="#app-main" hx-swap="outerHTML" class="checklist-delete-form">
-            {% for p in filters.projects %}<input type="hidden" name="f_project" value="{{ p }}">{% endfor %}
-            <input type="hidden" name="f_from" value="{{ filters.date_from }}">
-            <input type="hidden" name="f_to" value="{{ filters.date_to }}">
-            <input type="hidden" name="f_q" value="{{ filters.q }}">
-            <input type="hidden" name="f_view" value="{{ filters.view }}">
-            <input type="hidden" name="f_milestone" value="{{ filters.milestone }}">
-            <input type="hidden" name="f_show_closed" value="{% if filters.show_closed %}1{% endif %}">
-            <input type="hidden" name="f_stale_days" value="{{ filters.stale_days }}">
-            <button type="submit" class="check-delete" aria-label="Remove checklist item">×</button>
-          </form>
-        </li>
-      {% else %}
-        <li class="muted">No checklist items yet.</li>
-      {% endfor %}
-    </ul>
-    <form hx-post="/tasks/{{ selected_task.id }}/checklist/add" hx-target="#app-main" hx-swap="outerHTML" class="checklist-add-form">
-      {% for p in filters.projects %}<input type="hidden" name="f_project" value="{{ p }}">{% endfor %}
-      <input type="hidden" name="f_from" value="{{ filters.date_from }}">
-      <input type="hidden" name="f_to" value="{{ filters.date_to }}">
-      <input type="hidden" name="f_q" value="{{ filters.q }}">
-      <input type="hidden" name="f_view" value="{{ filters.view }}">
-      <input type="hidden" name="f_milestone" value="{{ filters.milestone }}">
-      <input type="hidden" name="f_show_closed" value="{% if filters.show_closed %}1{% endif %}">
-      <input type="hidden" name="f_stale_days" value="{{ filters.stale_days }}">
-      <input name="item_text" placeholder="Add checklist item" required>
-      <button type="submit">Add item</button>
-    </form>
+    <div id="checklist-body">
+      {% include "partials/checklist.html" %}
+    </div>
   </section>
 
   <section class="subsection activity-section">
@@ -479,3 +436,4 @@
 
   <p class="task-id-footer">Task ID: <span class="mono">{{ selected_task.id }}</span></p>
 </div>
+{% if git is defined and hx_request %}{% with git_chip_oob = true %}{% include "partials/git_chip.html" %}{% endwith %}{% endif %}

@@ -15,24 +15,11 @@
 <body>
   <header class="topbar">
     <div class="brand">
-      <span class="brand-mark">{{ app_name[:1]|upper }}</span>
-      <div>
-        <h1>{{ app_name }}</h1>
-        <p>{{ workspace_name }}</p>
-      </div>
-    </div>
-    <div class="topbar-actions">
-      {% set ai_context_url = '' %}
-      {% if selected_task %}
-        {% set ai_context_url = '/ai/panel/task/' ~ selected_task.id ~ '?view=' ~ filters.view ~ '&milestone=' ~ filters.milestone ~ (('&show_closed=1') if filters.show_closed else '') ~ '&stale_days=' ~ filters.stale_days %}
-      {% elif selected_milestone %}
-        {% set ai_context_url = '/ai/panel/milestone/' ~ selected_milestone.id ~ '?view=' ~ filters.view ~ (('&show_closed=1') if filters.show_closed else '') ~ '&stale_days=' ~ filters.stale_days %}
-      {% endif %}
-      <button type="button" class="btn-link ai-panel-toggle topbar-ai-toggle" data-ai-panel-toggle data-ai-context-url="{{ ai_context_url }}" title="Toggle AI assistant" aria-label="Toggle AI assistant"{% if ai_enabled != '1' %} style="display:none"{% endif %}>🤖</button>
-      {% include "partials/git_chip.html" %}
-      <div class="settings-anchor">
-        <button class="settings-btn" id="settings-btn" aria-label="Settings" title="Settings">⚙</button>
-      <div class="settings-popup" id="settings-popup" hidden>
+      <div class="settings-anchor brand-settings">
+        <button class="settings-btn brand-mark" id="settings-btn" aria-label="Settings" title="Settings">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
+        <div class="settings-popup settings-popup-left" id="settings-popup" hidden>
         <div class="settings-popup-title">Theme</div>
         <div class="theme-options">
           <button class="theme-option" data-theme-opt="system" title="Follow system preference">
@@ -110,9 +97,41 @@
           </div>
         </div>
       </form>
+        </div>
+      </div>
+      <div>
+        <h1>{{ app_name }}</h1>
+        <p>{{ workspace_name }}</p>
+      </div>
     </div>
+    <div class="topbar-actions">
+      {% set ai_context_url = '' %}
+      {% if selected_task %}
+        {% set ai_context_url = '/ai/panel/task/' ~ selected_task.id ~ '?view=' ~ filters.view ~ '&milestone=' ~ filters.milestone ~ (('&show_closed=1') if filters.show_closed else '') ~ '&stale_days=' ~ filters.stale_days %}
+      {% elif selected_milestone %}
+        {% set ai_context_url = '/ai/panel/milestone/' ~ selected_milestone.id ~ '?view=' ~ filters.view ~ (('&show_closed=1') if filters.show_closed else '') ~ '&stale_days=' ~ filters.stale_days %}
+      {% endif %}
+      <button type="button" class="btn-link ai-panel-toggle topbar-ai-toggle" data-ai-panel-toggle data-ai-context-url="{{ ai_context_url }}" title="Toggle AI assistant" aria-label="Toggle AI assistant"{% if ai_enabled != '1' %} style="display:none"{% endif %}>
+        <svg class="ai-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="4" y="8" width="16" height="11" rx="3"></rect>
+          <path d="M12 8V4.5"></path>
+          <circle cx="12" cy="3" r="1.2" fill="currentColor" stroke="none"></circle>
+          <path d="M2 13v2M22 13v2"></path>
+          <circle cx="9" cy="13.5" r="1.15" fill="currentColor" stroke="none"></circle>
+          <circle cx="15" cy="13.5" r="1.15" fill="currentColor" stroke="none"></circle>
+        </svg>
+      </button>
+      {% include "partials/git_chip.html" %}
     </div>
-    </div>
+    <nav class="focus-bar" id="focus-bar" role="group" aria-label="Focus view">
+      <span class="focus-bar-label">View</span>
+      <span class="focus-bar-row">
+        <button type="button" class="focus-btn" data-focus-target="main">Main</button>
+        <button type="button" class="focus-btn" data-focus-target="both">Details + AI</button>
+        <button type="button" class="focus-btn" data-focus-target="side">Details</button>
+        <button type="button" class="focus-btn" data-focus-target="ai">AI</button>
+      </span>
+    </nav>
   </header>
   {% block body %}{% endblock %}
   <script>
@@ -342,6 +361,18 @@
         }
         document.querySelectorAll('.project-dd[open]').forEach(function (dd) {
           if (!dd.contains(e.target)) dd.open = false;
+        });
+      });
+      // Close toolbar dropdowns (New / Export / Filter) after choosing an item or clicking outside.
+      document.addEventListener('click', function (e) {
+        var item = e.target.closest('[data-menu-item]');
+        if (item) {
+          var owner = item.closest('details[open]');
+          if (owner) owner.open = false;
+          return;
+        }
+        document.querySelectorAll('.content-toolbar details[open]').forEach(function (d) {
+          if (!d.contains(e.target)) d.open = false;
         });
       });
       document.addEventListener('keydown', function (e) {
@@ -649,6 +680,20 @@
         if (!panel) return false;
         return !!panel.children.length && (panel.textContent || '').trim().length > 0;
       }
+      function setFocusIntent(mode) {
+        try { sessionStorage.setItem('taskunity.focus', mode); } catch (err) {}
+        // Apply immediately so the responsive panes settle in the same frame as
+        // the click, then re-run shortly after in case content is still arriving.
+        if (window.taskunityUpdateFocusBar) window.taskunityUpdateFocusBar();
+        if (window.taskunityUpdateFocusBar) window.setTimeout(window.taskunityUpdateFocusBar, 20);
+      }
+      function showPanelLoading(panel) {
+        if (!panel) return;
+        if (panelHasContent(panel)) return; // keep existing content to avoid flicker
+        panel.classList.remove('side-panel-empty');
+        panel.innerHTML = '<div class="panel-scroll"><div class="empty-panel panel-loading">' +
+          '<span class="panel-spinner" aria-hidden="true"></span><p class="muted">Loading…</p></div></div>';
+      }
       var lastTaskPanelUrl = '';
       var lastTaskPanelRequestedAt = 0;
       var preservedTaskPanelHtml = '';
@@ -669,11 +714,24 @@
         if (!btn) return;
         setGitSyncPanelTask('');
         collapseTaskPanel();
+        setFocusIntent('main');
+      });
+      // Switching main views should focus the main pane on narrow screens.
+      document.addEventListener('click', function (e) {
+        if (e.target.closest('.view-switch button')) setFocusIntent('main');
       });
       document.addEventListener('click', function (e) {
         var panelTrigger = e.target.closest('[hx-target="#task-panel"]');
         if (!panelTrigger) return;
         expandTaskPanel();
+        var panel = document.getElementById('task-panel');
+        if (panel) panel.dataset.panelRetried = '';
+        // Show the loading placeholder *before* setting focus intent so the
+        // focus switcher sees a populated pane and applies data-focus="side"
+        // synchronously — otherwise the full-width sticky side panel would flash
+        // over the main content at narrow widths before the swap arrives.
+        showPanelLoading(panel);
+        setFocusIntent('side');
         var panelUrl = panelTrigger.getAttribute('hx-get') || '';
         if (panelUrl) {
           lastTaskPanelUrl = panelUrl;
@@ -685,15 +743,8 @@
             setGitSyncPanelTask('');
           }
         }
-        if (/\/tasks\/[^/]+\/panel(?:\?|$)/.test(panelUrl)) {
-          window.setTimeout(function () {
-            var panel = document.getElementById('task-panel');
-            if (!panel) return;
-            if (panelHasContent(panel)) return;
-            if (!window.htmx || typeof window.htmx.ajax !== 'function') return;
-            window.htmx.ajax('GET', panelUrl, { target: '#task-panel', swap: 'innerHTML' });
-          }, 220);
-        }
+        // HTMX performs the actual request from the element's own hx-get; the
+        // afterSwap safety net below re-fetches once if the result is empty.
       });
       document.addEventListener('pointerdown', function (e) {
         var panelTrigger = e.target.closest('[hx-target="#task-panel"]');
@@ -757,11 +808,24 @@
         if (!panel) return;
         var hasContent = panelHasContent(panel);
         if (hasContent) {
+          panel.dataset.panelRetried = '';
           expandTaskPanel();
           lastTaskPanelRequestedAt = Date.now();
           var currentTaskUrl = panel.getAttribute('data-ai-context-url') || '';
           var currentTaskId = taskIdFromPanelUrl(currentTaskUrl);
           if (currentTaskId) setGitSyncPanelTask(currentTaskId);
+          if (window.taskunityUpdateFocusBar) window.setTimeout(window.taskunityUpdateFocusBar, 20);
+          return;
+        }
+        // Swap produced no usable content — retry the last panel URL exactly once.
+        var recentlyRequested = (Date.now() - lastTaskPanelRequestedAt) < 6000;
+        if (lastTaskPanelUrl && recentlyRequested && panel.dataset.panelRetried !== '1' &&
+            window.htmx && typeof window.htmx.ajax === 'function') {
+          panel.dataset.panelRetried = '1';
+          showPanelLoading(panel);
+          window.setTimeout(function () {
+            window.htmx.ajax('GET', lastTaskPanelUrl, { target: '#task-panel', swap: 'innerHTML' });
+          }, 60);
         }
       });
       document.body.addEventListener('htmx:beforeSwap', function (e) {
@@ -1133,7 +1197,19 @@
         if (panel && !panelHasContent(panel) && lastAiPanelUrl && window.htmx && typeof window.htmx.ajax === 'function') {
           window.htmx.ajax('GET', lastAiPanelUrl, { target: '#ai-panel', swap: 'innerHTML' });
         }
+        // Only steal focus to the AI pane when the user explicitly opened it.
+        // Background refreshes (e.g. syncing AI context after clicking a task)
+        // must not override the focus intent the user just expressed.
+        if (openAiPanel._focusIntent) {
+          try { sessionStorage.setItem('taskunity.focus', 'ai'); } catch (err) {}
+        }
         updateAiPanelToggle();
+        if (window.taskunityUpdateFocusBar) window.setTimeout(window.taskunityUpdateFocusBar, 20);
+      }
+      // Explicit user action helper: open AI and make it the focused pane.
+      function focusAiPanel() {
+        openAiPanel._focusIntent = true;
+        try { openAiPanel(); } finally { openAiPanel._focusIntent = false; }
       }
       function closeAiPanel() {
         var main = getMainLayout();
@@ -1142,7 +1218,9 @@
         if (main) main.classList.add('ai-panel-collapsed');
         sessionStorage.setItem(AI_PANEL_OPEN_KEY, '0');
         if (panel) panel.hidden = true;
+        try { if (sessionStorage.getItem('taskunity.focus') === 'ai') sessionStorage.setItem('taskunity.focus', 'main'); } catch (err) {}
         updateAiPanelToggle();
+        if (window.taskunityUpdateFocusBar) window.setTimeout(window.taskunityUpdateFocusBar, 20);
       }
       document.addEventListener('click', function (e) {
         var toggleBtn = e.target.closest('[data-ai-panel-toggle]');
@@ -1158,7 +1236,7 @@
           var main = getMainLayout();
           var isOpen = !!(main && !main.classList.contains('ai-panel-collapsed'));
           if (isOpen) closeAiPanel();
-          else openAiPanel();
+          else focusAiPanel();
           return;
         }
         // Open AI panel via HTMX-injected content, triggered by data-open-ai-panel buttons
@@ -1169,7 +1247,7 @@
             lastAiPanelUrl = openUrl;
             sessionStorage.setItem(AI_PANEL_URL_KEY, openUrl);
           }
-          openAiPanel();
+          focusAiPanel();
           return;
         }
         // Close AI panel
@@ -1325,6 +1403,179 @@
 
       syncAiContextFromCurrentPanel();
       updateAiPanelToggle();
+    })();
+
+    // ── Focus switcher (narrow screens: show one pane at a time) ──────────
+    // ── Focus switcher (narrow screens: show one pane at a time) ──────────
+    (function () {
+      var TIER_SPLIT = 1120;
+      var TIER_GROUP = 1400;
+      var FOCUS_KEY = 'taskunity.focus';
+      var bar = document.getElementById('focus-bar');
+      if (!bar) return;
+      function mainEl() { return document.getElementById('app-main'); }
+      function sideEl() { return document.getElementById('task-panel'); }
+      function aiEl() { return document.getElementById('ai-panel'); }
+      function sideHasContent() {
+        var p = sideEl(), m = mainEl();
+        return !!(p && p.children.length && (p.textContent || '').trim().length &&
+                  m && !m.classList.contains('panel-collapsed'));
+      }
+      function aiIsOpen() {
+        var m = mainEl(), a = aiEl();
+        return !!(m && !m.classList.contains('ai-panel-collapsed') && a && !a.hasAttribute('hidden') &&
+                  a.children.length && (a.textContent || '').trim().length);
+      }
+      function updateFocusBar() {
+        var m = mainEl();
+        var W = window.innerWidth;
+        var hasSide = sideHasContent();
+        var hasAi = aiIsOpen();
+        var openCount = (hasSide ? 1 : 0) + (hasAi ? 1 : 0);
+        // Two sidebars squeeze the main pane sooner, so they group at a wider
+        // breakpoint; a single sidebar only needs switching once we're truly narrow.
+        var wantGroup = openCount === 2 && W <= TIER_GROUP && W > TIER_SPLIT;
+        var wantSplit = openCount >= 1 && W <= TIER_SPLIT;
+        var show = wantGroup || wantSplit;
+        var grouped = wantGroup; // Details + AI share a single focus view
+        document.body.classList.toggle('has-focus-bar', show);
+        if (!show) { if (m) m.removeAttribute('data-focus'); return; }
+        var stored = '';
+        try { stored = sessionStorage.getItem(FOCUS_KEY) || ''; } catch (err) {}
+        var mode = stored;
+        if (grouped) {
+          // Only two views exist here: the main board, or both sidebars together.
+          mode = (mode === 'main') ? 'main' : 'both';
+        } else {
+          // Split / single-sidebar: each open pane is its own view.
+          if (mode === 'both') mode = '';
+          if (mode === 'side' && !hasSide) mode = '';
+          if (mode === 'ai' && !hasAi) mode = '';
+          if (!mode) mode = hasSide ? 'side' : (hasAi ? 'ai' : 'main');
+        }
+        if (m) m.setAttribute('data-focus', mode);
+        bar.querySelectorAll('.focus-btn').forEach(function (b) {
+          var t = b.dataset.focusTarget;
+          var visible;
+          if (t === 'main') visible = true;
+          else if (t === 'both') visible = grouped;
+          else if (t === 'side') visible = !grouped && hasSide;
+          else if (t === 'ai') visible = !grouped && hasAi;
+          else visible = false;
+          b.hidden = !visible;
+          b.disabled = !visible;
+          b.classList.toggle('active', t === mode);
+        });
+      }
+      bar.addEventListener('click', function (e) {
+        var b = e.target.closest('.focus-btn');
+        if (!b || b.disabled) return;
+        try { sessionStorage.setItem(FOCUS_KEY, b.dataset.focusTarget); } catch (err) {}
+        updateFocusBar();
+      });
+      window.addEventListener('resize', updateFocusBar);
+      document.body.addEventListener('htmx:afterSwap', function () { setTimeout(updateFocusBar, 40); });
+      window.taskunityUpdateFocusBar = updateFocusBar;
+      setTimeout(updateFocusBar, 80);
+    })();
+
+    // ── Checklist: drag-to-reorder + keep focus in the add field ──────────
+    (function () {
+      var dragItem = null;
+
+      // Only the drag handle may start a drag (so the rename input stays usable).
+      document.addEventListener('mousedown', function (e) {
+        var handle = e.target.closest('.check-drag');
+        if (!handle) return;
+        var li = handle.closest('.checklist-item');
+        if (li) li.setAttribute('draggable', 'true');
+      });
+      document.addEventListener('mouseup', function () {
+        document.querySelectorAll('.checklist-item[draggable="true"]').forEach(function (li) {
+          li.removeAttribute('draggable');
+        });
+      });
+
+      document.addEventListener('dragstart', function (e) {
+        var li = e.target.closest ? e.target.closest('.checklist-item') : null;
+        if (!li || li.getAttribute('draggable') !== 'true') return;
+        dragItem = li;
+        li.classList.add('checklist-dragging');
+        if (e.dataTransfer) {
+          e.dataTransfer.effectAllowed = 'move';
+          try { e.dataTransfer.setData('text/plain', li.dataset.index || ''); } catch (err) {}
+        }
+      });
+
+      function afterElement(container, y) {
+        var items = Array.prototype.slice.call(
+          container.querySelectorAll('.checklist-item:not(.checklist-dragging)')
+        );
+        var closest = { offset: Number.NEGATIVE_INFINITY, element: null };
+        items.forEach(function (child) {
+          var box = child.getBoundingClientRect();
+          var offset = y - box.top - box.height / 2;
+          if (offset < 0 && offset > closest.offset) {
+            closest = { offset: offset, element: child };
+          }
+        });
+        return closest.element;
+      }
+
+      document.addEventListener('dragover', function (e) {
+        if (!dragItem) return;
+        var list = e.target.closest ? e.target.closest('#checklist-items') : null;
+        if (!list) return;
+        e.preventDefault();
+        if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+        var after = afterElement(list, e.clientY);
+        if (after == null) list.appendChild(dragItem);
+        else list.insertBefore(dragItem, after);
+      });
+
+      function finishDrag() {
+        if (!dragItem) return;
+        var list = dragItem.closest('#checklist-items');
+        var moved = dragItem;
+        dragItem.classList.remove('checklist-dragging');
+        dragItem = null;
+        if (!list) return;
+        var order = Array.prototype.slice.call(list.querySelectorAll('.checklist-item'))
+          .map(function (li) { return li.dataset.index; })
+          .filter(function (v) { return v != null && v !== ''; });
+        var taskId = list.dataset.taskId;
+        if (!taskId || !order.length) return;
+        if (window.htmx && typeof window.htmx.ajax === 'function') {
+          window.htmx.ajax('POST', '/tasks/' + encodeURIComponent(taskId) + '/checklist/reorder', {
+            target: '#checklist-body',
+            swap: 'innerHTML',
+            values: { order: order.join(',') }
+          });
+        }
+      }
+      document.addEventListener('drop', function (e) {
+        if (dragItem) e.preventDefault();
+        finishDrag();
+      });
+      document.addEventListener('dragend', finishDrag);
+
+      // After an add, the checklist body is replaced; put the cursor back in the
+      // add field so multiple items can be typed without re-clicking.
+      var refocusAdd = false;
+      document.addEventListener('submit', function (e) {
+        if (e.target && e.target.classList && e.target.classList.contains('checklist-add-form')) {
+          refocusAdd = true;
+        }
+      }, true);
+      document.body.addEventListener('htmx:afterSwap', function (e) {
+        var target = e && e.detail ? e.detail.target : null;
+        if (!target || target.id !== 'checklist-body') return;
+        if (refocusAdd) {
+          refocusAdd = false;
+          var input = target.querySelector('.checklist-add-input');
+          if (input) input.focus();
+        }
+      });
     })();
   </script>
 </body>

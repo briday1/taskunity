@@ -152,3 +152,4 @@
 
   <p class="task-id-footer">Milestone ID: <span class="mono">{{ selected_milestone.id }}</span></p>
 </div>
+{% if git is defined and hx_request %}{% with git_chip_oob = true %}{% include "partials/git_chip.html" %}{% endwith %}{% endif %}

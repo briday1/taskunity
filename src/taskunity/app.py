@@ -1147,6 +1147,7 @@ Rules:
         sort_dir: str = "",
         view: str = "list",
         milestone: str = "",
+        selected_project_id: str = "",
         show_closed: bool = False,
         hide_old: bool | None = None,
         hide_done: bool = False,
@@ -1176,7 +1177,7 @@ Rules:
             if query_params.get("hide_old") is not None:
                 hide_old = parse_toggle(query_params.get("hide_old"))
             else:
-                hide_old = not show_closed
+                hide_old = False
         show_closed = not bool(hide_old)
         hide_done = hide_done or parse_toggle(query_params.get("hide_done"))
         today = date.today()
@@ -1248,6 +1249,20 @@ Rules:
                 candidate_tasks = [t for t in all_tasks if t.id in allowed]
             else:
                 milestone = ""
+
+        selected_project = None
+        selected_project_tasks: list[Task] = []
+        if selected_task is None and selected_milestone is None:
+            project_panel_id = (selected_project_id or request.query_params.get("panel_project") or "").strip()
+            if project_panel_id:
+                selected_project = next((p for p in all_projects if p.id == project_panel_id), None)
+                if selected_project is not None:
+                    selected_project_tasks = [
+                        t
+                        for t in all_tasks
+                        if (selected_project.id and t.project_id == selected_project.id)
+                        or ((not t.project_id) and t.project == selected_project.name)
+                    ]
 
         filtered = sort_tasks(filter_tasks(candidate_tasks, projects, date_from, date_to, q), sort, sort_dir)
         if hide_done:
@@ -1348,6 +1363,8 @@ Rules:
             "milestones": milestones,
             "selected_milestone": selected_milestone,
             "rollup": rollup,
+            "selected_project": selected_project,
+            "project_tasks": selected_project_tasks,
             "milestone_rollups": milestone_rollups,
             "workspace": workspace,
             "projects": all_projects,
@@ -1590,6 +1607,12 @@ Rules:
     def create_task_route(
         request: Request,
         title: str = Form("New task"),
+        project: str = Form(""),
+        summary: str = Form(""),
+        description: str = Form(""),
+        start_date: str = Form(""),
+        due_date: str = Form(""),
+        tags: str = Form(""),
         f_project: list[str] = Form(default=[]),
         f_from: str = Form(""),
         f_to: str = Form(""),
@@ -1600,7 +1623,26 @@ Rules:
         f_hide_done: str = Form(""),
         f_stale_days: str = Form(str(STALE_CLOSED_DAYS)),
     ) -> HTMLResponse:
-        task = create_task(workspace, title)
+        task = create_task(workspace, (title or "New task").strip() or "New task")
+        project_value = (project or "").strip()
+        if project_value:
+            projects_all = load_all_projects(workspace)
+            by_id = {p.id: p for p in projects_all if p.id}
+            by_name = {p.name: p for p in projects_all}
+            selected_project = by_id.get(project_value) or by_name.get(project_value)
+            if selected_project is None:
+                selected_project = register_project(workspace, project_value)
+            if selected_project is not None:
+                task.project_id = selected_project.id
+                task.project = selected_project.name
+        task.summary = summary
+        task.description = description
+        task.start_date = start_date or None
+        task.due_date = due_date or None
+        task.tags = [x.strip() for x in tags.split(",") if x.strip()]
+        save_task(workspace, task)
+        if task.project:
+            register_project(workspace, task.project)
         if f_milestone:
             add_task_to_milestone(workspace, f_milestone, task.id)
         return templates.TemplateResponse(
@@ -1620,6 +1662,63 @@ Rules:
                 stale_days=parse_stale_days(f_stale_days),
             ),
         )
+
+    @app.get("/new/task/panel", response_class=HTMLResponse)
+    def new_task_panel_route(
+        request: Request,
+        view: str = "list",
+        milestone: str = "",
+        show_closed: str = "",
+        stale_days: str = "",
+    ) -> HTMLResponse:
+        return templates.TemplateResponse(
+            request,
+            "partials/new_task_panel.html",
+            context(
+                request,
+                view=view,
+                milestone=milestone,
+                show_closed=parse_toggle(show_closed),
+                stale_days=parse_stale_days(stale_days),
+            ),
+        )
+
+    @app.get("/new/milestone/panel", response_class=HTMLResponse)
+    def new_milestone_panel_route(
+        request: Request,
+        view: str = "list",
+        show_closed: str = "",
+        stale_days: str = "",
+    ) -> HTMLResponse:
+        return templates.TemplateResponse(
+            request,
+            "partials/new_milestone_panel.html",
+            context(
+                request,
+                view=view,
+                show_closed=parse_toggle(show_closed),
+                stale_days=parse_stale_days(stale_days),
+            ),
+        )
+
+    @app.get("/new/project/panel", response_class=HTMLResponse)
+    def new_project_panel_route(
+        request: Request,
+        view: str = "list",
+        show_closed: str = "",
+        stale_days: str = "",
+    ) -> HTMLResponse:
+        return templates.TemplateResponse(
+            request,
+            "partials/new_project_panel.html",
+            context(
+                request,
+                view=view,
+                show_closed=parse_toggle(show_closed),
+                stale_days=parse_stale_days(stale_days),
+            ),
+        )
+
 
     @app.post("/tasks/{task_id}/save", response_class=HTMLResponse)
     async def save_task_route(
@@ -1841,111 +1940,86 @@ Rules:
             ),
         )
 
+    def _render_checklist(request: Request, task: Task) -> HTMLResponse:
+        return templates.TemplateResponse(
+            request,
+            "partials/checklist.html",
+            context(request, task),
+        )
+
     @app.post("/tasks/{task_id}/checklist/add", response_class=HTMLResponse)
     async def checklist_add_route(
         request: Request,
         task_id: str,
         item_text: str = Form(""),
-        f_project: list[str] = Form(default=[]),
-        f_from: str = Form(""),
-        f_to: str = Form(""),
-        f_q: str = Form(""),
-        f_view: str = Form("list"),
-        f_milestone: str = Form(""),
-        f_show_closed: str = Form(""),
-        f_stale_days: str = Form(str(STALE_CLOSED_DAYS)),
     ) -> HTMLResponse:
         task = load_task(workspace, task_id)
         text = item_text.strip()
         if text:
             task.checklist.append(ChecklistItem(text=text, done=False))
             save_task(workspace, task)
-        return templates.TemplateResponse(
-            request,
-            "partials/main.html",
-            context(
-                request,
-                task,
-                projects=f_project,
-                date_from=f_from,
-                date_to=f_to,
-                q=f_q,
-                view=f_view,
-                milestone=f_milestone,
-                show_closed=parse_toggle(f_show_closed),
-                stale_days=parse_stale_days(f_stale_days),
-            ),
-        )
+        return _render_checklist(request, task)
 
     @app.post("/tasks/{task_id}/checklist/{item_index}/toggle", response_class=HTMLResponse)
     async def checklist_toggle_route(
         request: Request,
         task_id: str,
         item_index: int,
-        f_project: list[str] = Form(default=[]),
-        f_from: str = Form(""),
-        f_to: str = Form(""),
-        f_q: str = Form(""),
-        f_view: str = Form("list"),
-        f_milestone: str = Form(""),
-        f_show_closed: str = Form(""),
-        f_stale_days: str = Form(str(STALE_CLOSED_DAYS)),
     ) -> HTMLResponse:
         task = load_task(workspace, task_id)
         if 0 <= item_index < len(task.checklist):
             task.checklist[item_index].done = not task.checklist[item_index].done
             save_task(workspace, task)
-        return templates.TemplateResponse(
-            request,
-            "partials/main.html",
-            context(
-                request,
-                task,
-                projects=f_project,
-                date_from=f_from,
-                date_to=f_to,
-                q=f_q,
-                view=f_view,
-                milestone=f_milestone,
-                show_closed=parse_toggle(f_show_closed),
-                stale_days=parse_stale_days(f_stale_days),
-            ),
-        )
+        return _render_checklist(request, task)
+
+    @app.post("/tasks/{task_id}/checklist/{item_index}/rename", response_class=HTMLResponse)
+    async def checklist_rename_route(
+        request: Request,
+        task_id: str,
+        item_index: int,
+        item_text: str = Form(""),
+    ) -> HTMLResponse:
+        task = load_task(workspace, task_id)
+        text = item_text.strip()
+        if 0 <= item_index < len(task.checklist):
+            if text:
+                if task.checklist[item_index].text != text:
+                    task.checklist[item_index].text = text
+                    save_task(workspace, task)
+            else:
+                # Renaming to empty removes the item, matching common list UX.
+                task.checklist.pop(item_index)
+                save_task(workspace, task)
+        return _render_checklist(request, task)
+
+    @app.post("/tasks/{task_id}/checklist/reorder", response_class=HTMLResponse)
+    async def checklist_reorder_route(
+        request: Request,
+        task_id: str,
+        order: str = Form(""),
+    ) -> HTMLResponse:
+        task = load_task(workspace, task_id)
+        try:
+            new_order = [int(part) for part in order.split(",") if part.strip() != ""]
+        except ValueError:
+            new_order = []
+        # Only apply when the payload is a genuine permutation of the current items.
+        if sorted(new_order) == list(range(len(task.checklist))) and new_order:
+            task.checklist = [task.checklist[i] for i in new_order]
+            save_task(workspace, task)
+        return _render_checklist(request, task)
 
     @app.post("/tasks/{task_id}/checklist/{item_index}/delete", response_class=HTMLResponse)
     async def checklist_delete_route(
         request: Request,
         task_id: str,
         item_index: int,
-        f_project: list[str] = Form(default=[]),
-        f_from: str = Form(""),
-        f_to: str = Form(""),
-        f_q: str = Form(""),
-        f_view: str = Form("list"),
-        f_milestone: str = Form(""),
-        f_show_closed: str = Form(""),
-        f_stale_days: str = Form(str(STALE_CLOSED_DAYS)),
     ) -> HTMLResponse:
         task = load_task(workspace, task_id)
         if 0 <= item_index < len(task.checklist):
             task.checklist.pop(item_index)
             save_task(workspace, task)
-        return templates.TemplateResponse(
-            request,
-            "partials/main.html",
-            context(
-                request,
-                task,
-                projects=f_project,
-                date_from=f_from,
-                date_to=f_to,
-                q=f_q,
-                view=f_view,
-                milestone=f_milestone,
-                show_closed=parse_toggle(f_show_closed),
-                stale_days=parse_stale_days(f_stale_days),
-            ),
-        )
+        return _render_checklist(request, task)
 
     @app.post("/tasks/{task_id}/raw", response_class=HTMLResponse)
     async def save_raw_json(
@@ -2244,22 +2318,60 @@ Rules:
         upsert_project(workspace, name, description.strip(), color, project_id=project_id)
         return templates.TemplateResponse(request, "partials/main.html", context(request, view="projects"))
 
+    @app.post("/projects/create-open", response_class=HTMLResponse)
+    def create_project_open_route(
+        request: Request,
+        name: str = Form(...),
+        description: str = Form(""),
+        color: str = Form("#2e6fd8"),
+        f_view: str = Form("list"),
+        f_show_closed: str = Form(""),
+        f_stale_days: str = Form(str(STALE_CLOSED_DAYS)),
+    ) -> HTMLResponse:
+        project = upsert_project(workspace, name.strip() or "New project", description.strip(), color)
+        return templates.TemplateResponse(
+            request,
+            "partials/main.html",
+            context(
+                request,
+                view=f_view,
+                selected_project_id=(project.id if project else ""),
+                show_closed=parse_toggle(f_show_closed),
+                stale_days=parse_stale_days(f_stale_days),
+            ),
+        )
+
     # --- Milestones ---------------------------------------------------------
 
     @app.post("/milestones/create", response_class=HTMLResponse)
     def create_milestone_route(
         request: Request,
         title: str = Form("New milestone"),
+        status: str = Form("active"),
+        color: str = Form("#3567e0"),
+        summary: str = Form(""),
+        description: str = Form(""),
+        start_date: str = Form(""),
+        target_date: str = Form(""),
+        f_view: str = Form("list"),
         f_show_closed: str = Form(""),
         f_stale_days: str = Form(str(STALE_CLOSED_DAYS)),
     ) -> HTMLResponse:
-        milestone = create_milestone(workspace, title)
+        milestone = create_milestone(workspace, (title or "New milestone").strip() or "New milestone")
+        milestone.status = status if status in {"planned", "active", "done"} else "active"
+        milestone.color = (color or "").strip() or "#3567e0"
+        milestone.summary = summary
+        milestone.description = description
+        milestone.start_date = start_date or None
+        milestone.target_date = target_date or None
+        save_milestone(workspace, milestone)
+        view = f_view if f_view in VIEWS else "list"
         return templates.TemplateResponse(
             request,
             "partials/main.html",
             context(
                 request,
-                view="list",
+                view=view,
                 milestone=milestone.id,
                 show_closed=parse_toggle(f_show_closed),
                 stale_days=parse_stale_days(f_stale_days),
