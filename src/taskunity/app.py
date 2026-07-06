@@ -6,6 +6,7 @@ import html as html_lib
 import io
 import json
 import re
+import socket
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -1097,6 +1098,34 @@ Rules:
             message.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
         )
         return f'<div class="ai-msg ai-msg-error"><strong>Error:</strong> {escaped}</div>'
+
+    def _extract_ai_error_message(body: str) -> str:
+        """Pull a human-readable error message out of an API error payload.
+
+        Providers vary: some return ``{"error": {"message": ...}}``, some
+        ``{"error": "..."}``, some ``{"message": ...}`` or ``{"detail": ...}``.
+        Falls back to the raw (truncated) body when nothing structured is found.
+        """
+        body = (body or "").strip()
+        if not body:
+            return ""
+        try:
+            data = json.loads(body)
+        except (json.JSONDecodeError, ValueError):
+            return body[:500]
+        if isinstance(data, dict):
+            err = data.get("error")
+            if isinstance(err, dict):
+                msg = err.get("message") or err.get("code") or err.get("type")
+                if msg:
+                    return str(msg)
+            elif isinstance(err, str) and err:
+                return err
+            for key in ("message", "detail", "reason"):
+                val = data.get(key)
+                if isinstance(val, str) and val:
+                    return val
+        return body[:500]
 
     def build_query(
         projects: list[str], date_from: str, date_to: str, q: str, view: str = "", sort: str = "",
@@ -2880,6 +2909,58 @@ Rules:
             ),
         )
 
+    @app.get("/git/chip", response_class=HTMLResponse)
+    def git_chip_route(
+        request: Request,
+        f_project: list[str] = Query(default=[]),
+        f_from: str = "",
+        f_to: str = "",
+        f_q: str = "",
+        f_panel_task: str = "",
+        f_view: str = "list",
+        f_sort: str = "priority",
+        f_sort_dir: str = "",
+        f_milestone: str = "",
+        f_show_closed: str = "",
+        f_hide_done: str = "",
+        f_stale_days: str = str(STALE_CLOSED_DAYS),
+        f_calendar_month: str = "",
+        f_calendar_year: str = "",
+    ) -> HTMLResponse:
+        """Render just the git chip so it can be refreshed independently.
+
+        Used by the banner chip to poll/refresh git status without re-rendering
+        the whole main view, keeping the branch/ahead/behind/dirty state current
+        even after mutations that don't touch ``#app-main``.
+        """
+        selected_task = None
+        if f_panel_task:
+            try:
+                selected_task = load_task(workspace, f_panel_task)
+            except Exception:
+                selected_task = None
+        return templates.TemplateResponse(
+            request,
+            "partials/git_chip.html",
+            context(
+                request,
+                selected_task=selected_task,
+                projects=f_project,
+                date_from=f_from,
+                date_to=f_to,
+                q=f_q,
+                sort=f_sort,
+                sort_dir=f_sort_dir,
+                view=f_view,
+                milestone=f_milestone,
+                show_closed=parse_toggle(f_show_closed),
+                hide_done=parse_toggle(f_hide_done),
+                stale_days=parse_stale_days(f_stale_days),
+                calendar_month=parse_calendar_month(f_calendar_month),
+                calendar_year=parse_calendar_year(f_calendar_year),
+            ),
+        )
+
     @app.post("/git/lfs/init", response_class=HTMLResponse)
     def git_lfs_init_route(
         request: Request,
@@ -3371,14 +3452,35 @@ Rules:
 
         try:
             response = _ai_call(messages, cfg)
-            reply_text = response["choices"][0]["message"]["content"]
+        except urllib.error.HTTPError as exc:
+            body = exc.read().decode("utf-8", errors="replace")
+            detail = _extract_ai_error_message(body)
+            suffix = f" — {detail}" if detail else ""
+            return HTMLResponse(_ai_error_html(f"HTTP {exc.code} {exc.reason}{suffix}"))
+        except urllib.error.URLError as exc:
+            return HTMLResponse(_ai_error_html(f"Connection error: {exc.reason}"))
+        except (TimeoutError, socket.timeout):
+            return HTMLResponse(_ai_error_html(f"Request timed out after {cfg.get('ai_timeout_seconds', '30')}s."))
         except Exception as exc:
-            if isinstance(exc, urllib.error.HTTPError):
-                body = exc.read().decode("utf-8", errors="replace")[:300]
-                return HTMLResponse(_ai_error_html(f"HTTP {exc.code}: {exc.reason} — {body}"))
-            if isinstance(exc, urllib.error.URLError):
-                return HTMLResponse(_ai_error_html(f"Connection error: {exc.reason}"))
-            return HTMLResponse(_ai_error_html("An unexpected error occurred. Please check your endpoint settings."))
+            return HTMLResponse(_ai_error_html(f"Request failed: {exc}"))
+
+        # Some providers return HTTP 200 with an error payload (e.g. an API key
+        # that is valid but not active, quota exceeded, or model unavailable).
+        if isinstance(response, dict) and response.get("error"):
+            err = response["error"]
+            if isinstance(err, dict):
+                detail = err.get("message") or err.get("code") or err.get("type") or json.dumps(err)
+            else:
+                detail = str(err)
+            return HTMLResponse(_ai_error_html(f"API error: {detail}"))
+
+        try:
+            reply_text = response["choices"][0]["message"]["content"]
+        except (KeyError, IndexError, TypeError):
+            preview = json.dumps(response)[:500] if isinstance(response, (dict, list)) else str(response)[:500]
+            return HTMLResponse(_ai_error_html(f"Unexpected response from AI endpoint: {preview}"))
+        if reply_text is None:
+            return HTMLResponse(_ai_error_html("AI endpoint returned an empty response."))
 
         new_history = list(history_msgs)
         new_history.append({"role": "user", "content": user_message})

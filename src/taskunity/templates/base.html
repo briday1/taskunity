@@ -638,6 +638,19 @@
         }
       });
 
+      // Keep the banner git chip current when the user returns to the tab
+      // (e.g. after committing/pulling from a terminal) without waiting for the
+      // background poll interval.
+      function requestGitChipRefresh() {
+        var chip = document.getElementById('git-chip-slot');
+        if (!chip || chip.classList.contains('syncing')) return;
+        if (window.htmx) window.htmx.trigger(document.body, 'refreshgit');
+      }
+      window.addEventListener('focus', requestGitChipRefresh);
+      document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible') requestGitChipRefresh();
+      });
+
       function setComposerTab(root, name) {
         if (!root) return;
         root.querySelectorAll('[data-activity-tab]').forEach(function (btn) {

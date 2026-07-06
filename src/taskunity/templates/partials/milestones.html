@@ -31,13 +31,14 @@
             </div>
           </div>
           {% if m.summary %}<p class="mc-summary clamp-1">{{ m.summary }}</p>{% endif %}
+          {% set ms_projects = (r.project_names if r else []) %}
           <div class="mc-projects compact">
-            {% for proj in m.projects[:3] %}
+            {% for proj in ms_projects[:3] %}
               <span class="project" style="background: {{ project_colors.get(proj, '#2e6fd8') }}22; color: {{ project_colors.get(proj, '#2e6fd8') }}">{{ proj }}</span>
             {% endfor %}
-            {% if m.projects|length > 3 %}
-              <span class="muted">+{{ m.projects|length - 3 }} more</span>
-            {% elif m.projects|length == 0 %}
+            {% if ms_projects|length > 3 %}
+              <span class="muted">+{{ ms_projects|length - 3 }} more</span>
+            {% elif ms_projects|length == 0 %}
               <span class="muted">No projects assigned</span>
             {% endif %}
           </div>
