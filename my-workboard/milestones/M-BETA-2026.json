@@ -5,11 +5,6 @@
   "color": "#2e6fd8",
   "summary": "First public beta across the app, web, and platform teams.",
   "description": "The cross-project work required to open the public beta: a usable mobile and web experience on hardened infrastructure.",
-  "projects": [
-    "Apollo",
-    "Gemini",
-    "Mercury"
-  ],
   "start_date": "2026-06-15",
   "target_date": "2026-08-15",
   "task_ids": [

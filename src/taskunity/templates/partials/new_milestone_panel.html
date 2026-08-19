@@ -1,17 +1,22 @@
 <div class="panel-scroll">
   <div class="panel-heading sticky">
-    <div class="task-panel-title-row">
+    <div class="panel-heading-copy">
+      <span class="panel-eyebrow">Create</span>
+      <h2>New milestone</h2>
+    </div>
+    <div class="panel-header-actions">
       <button type="button" class="btn-link task-collapse-btn" data-panel-collapse title="Close" aria-label="Close">×</button>
-      <h2>New Milestone</h2>
     </div>
   </div>
 
-  <form hx-post="/milestones/create" hx-target="#app-main" hx-swap="outerHTML" class="task-form" style="margin-top:.95rem">
+  <form hx-post="/milestones/create" hx-target="#app-main" hx-swap="outerHTML" class="task-form entity-form">
     <input type="hidden" name="f_view" value="{{ filters.view }}">
     <input type="hidden" name="f_show_closed" value="{% if filters.show_closed %}1{% endif %}">
+    <input type="hidden" name="f_hide_done" value="{% if filters.hide_done %}1{% endif %}">
+    <input type="hidden" name="f_hide_old" value="{% if filters.hide_old %}1{% endif %}">
     <input type="hidden" name="f_stale_days" value="{{ filters.stale_days }}">
 
-    <label>Title<input name="title" value="" placeholder="Milestone title…" required autofocus></label>
+    <label class="title-field">Title<input name="title" value="" placeholder="Milestone title…" required autofocus></label>
     <div class="form-grid">
       <label>Status
         <select name="status">
@@ -31,7 +36,7 @@
       <label>Target date<input type="date" name="target_date" value=""></label>
     </div>
     <div class="panel-actions-row">
-      <button type="submit">Save Milestone</button>
+      <button type="submit">Create milestone</button>
     </div>
     <p class="muted draft-hint">Add tasks to this milestone once you save.</p>
   </form>

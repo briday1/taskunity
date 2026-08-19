@@ -1,6 +1,5 @@
-<section class="panel">
-  <div class="panel-heading">
-    <h2>Task List</h2>
+<section class="panel task-list-panel">
+  <div class="panel-heading view-heading">
     <span>{{ model.total }} task{{ '' if model.total == 1 else 's' }}</span>
   </div>
   {% if model.tasks %}

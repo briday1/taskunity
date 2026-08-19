@@ -588,14 +588,26 @@ def log_progress_change(workspace_path: Path, task: Task, old_progress: int, new
 
 
 def load_milestone(workspace: Path, milestone_id: str) -> Milestone:
-    return Milestone.model_validate(load_json(_safe_subpath(workspace / "milestones", f"{milestone_id}.json")))
+    path = _safe_subpath(workspace / "milestones", f"{milestone_id}.json")
+    raw = load_json(path)
+    milestone = Milestone.model_validate(raw)
+    # ``projects`` was historically a denormalized list of display names.
+    # Project membership is now joined through task.project_id -> task_ids, so
+    # rewrite legacy records once and never make renames fan out across files.
+    if "projects" in raw:
+        save_milestone(workspace, milestone)
+    return milestone
 
 
 def load_all_milestones(workspace: Path) -> list[Milestone]:
     ensure_workspace(workspace)
     milestones: list[Milestone] = []
     for path in sorted((workspace / "milestones").glob("*.json")):
-        milestones.append(Milestone.model_validate(load_json(path)))
+        raw = load_json(path)
+        milestone = Milestone.model_validate(raw)
+        if "projects" in raw:
+            save_milestone(workspace, milestone)
+        milestones.append(milestone)
     return milestones
 
 
@@ -742,8 +754,15 @@ def git_status(workspace: Path) -> dict[str, Any]:
         if top_level.returncode != 0:
             return info
         info["repo_root"] = Path(top_level.stdout.strip()).resolve()
+        if info["repo_root"] != Path(workspace).resolve():
+            info["message"] = "Git integration only works when the workspace folder is the repository root."
+            return info
         info["tracked"] = True
-        info["branch"] = _git(workspace, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip()
+        branch_result = _git(workspace, "symbolic-ref", "--short", "HEAD")
+        if branch_result.returncode == 0:
+            info["branch"] = branch_result.stdout.strip()
+        else:
+            info["branch"] = _git(workspace, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip()
         status = _git(workspace, "status", "--porcelain", "--", ".")
         if status.returncode == 0:
             info["dirty"] = len([line for line in status.stdout.splitlines() if line.strip()])
@@ -752,8 +771,9 @@ def git_status(workspace: Path) -> dict[str, Any]:
         if upstream.returncode == 0:
             info["upstream"] = upstream.stdout.strip()
 
-        # Ahead/behind is repo-wide by nature; only show it when workspace has local changes.
-        if info["dirty"] > 0 and info["upstream"]:
+        # Ahead/behind is repo-wide by nature and remains meaningful in a clean
+        # workspace (especially when another machine pushed new commits).
+        if info["upstream"]:
             counts = _git(workspace, "rev-list", "--left-right", "--count", "@{u}...HEAD")
             if counts.returncode == 0:
                 parts = counts.stdout.split()
@@ -785,7 +805,16 @@ def git_sync(workspace: Path) -> dict[str, Any]:
     # Refresh status in case .gitattributes was created/updated by LFS tracking.
     status = git_status(workspace)
     try:
-        branch = status["branch"] or _git(workspace, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip() or "main"
+        has_head = _git(workspace, "rev-parse", "--verify", "HEAD").returncode == 0
+        if not has_head:
+            # Give brand-new workspaces a predictable default regardless of
+            # the machine's global init.defaultBranch setting.
+            _git(workspace, "branch", "-M", "main")
+            branch = "main"
+        else:
+            branch = status["branch"] or _git(
+                workspace, "rev-parse", "--abbrev-ref", "HEAD"
+            ).stdout.strip() or "main"
 
         if status["dirty"]:
             _git(workspace, "add", ".")
@@ -797,7 +826,6 @@ def git_sync(workspace: Path) -> dict[str, Any]:
                 return result
 
         # Fresh/empty repo safety: if there is no HEAD commit yet, create one so push can succeed.
-        has_head = _git(workspace, "rev-parse", "--verify", "HEAD").returncode == 0
         if not has_head:
             init_commit = _git(
                 workspace,

@@ -1,26 +1,32 @@
-<main id="app-main" class="layout ai-panel-collapsed{% if not selected_task and not selected_milestone and not selected_project %} panel-collapsed{% endif %}" data-resizable-layout>
+<main id="app-main" class="layout ai-panel-collapsed{% if not selected_task and not selected_milestone and not selected_project and not new_task %} panel-collapsed{% endif %}{% if filters.pills %} has-filter-pills{% endif %}" data-resizable-layout data-state-query="{{ filters.state_query }}">
+  <div hidden aria-hidden="true" class="ui-state-fields">
+    <input name="f_calendar_month" value="{{ filters.calendar_month }}">
+    <input name="f_calendar_year" value="{{ filters.calendar_year }}">
+    <input name="f_hide_done" value="{% if filters.hide_done %}1{% endif %}">
+    <input name="f_hide_old" value="{% if filters.hide_old %}1{% endif %}">
+  </div>
   <section class="content">
     <div class="content-toolbar">
     <div class="toolbar-main">
       <div class="view-switch">
-        <button class="{% if filters.view == 'list' %}active{% endif %}" hx-get="/partials/main?view=list{% if filters.query %}&{{ filters.query }}{% endif %}{% if filters.panel_task %}&panel_task={{ filters.panel_task }}{% endif %}" hx-target="#app-main" hx-swap="outerHTML">Task List</button>
-        <button class="{% if filters.view == 'board' %}active{% endif %}" hx-get="/partials/main?view=board{% if filters.query %}&{{ filters.query }}{% endif %}{% if filters.panel_task %}&panel_task={{ filters.panel_task }}{% endif %}" hx-target="#app-main" hx-swap="outerHTML">Task Board</button>
-        <button class="{% if filters.view == 'gantt' %}active{% endif %}" hx-get="/partials/main?view=gantt{% if filters.query %}&{{ filters.query }}{% endif %}{% if filters.panel_task %}&panel_task={{ filters.panel_task }}{% endif %}" hx-target="#app-main" hx-swap="outerHTML">Gantt</button>
-        <button class="{% if filters.view == 'calendar' %}active{% endif %}" hx-get="/partials/main?view=calendar{% if filters.query %}&{{ filters.query }}{% endif %}{% if filters.panel_task %}&panel_task={{ filters.panel_task }}{% endif %}" hx-target="#app-main" hx-swap="outerHTML">Calendar</button>
-        <button class="{% if filters.view == 'milestones' %}active{% endif %}" hx-get="/partials/main?view=milestones{% if filters.query %}&{{ filters.query }}{% endif %}{% if filters.panel_task %}&panel_task={{ filters.panel_task }}{% endif %}" hx-target="#app-main" hx-swap="outerHTML">Milestones</button>
-        <button class="{% if filters.view == 'projects' %}active{% endif %}" hx-get="/partials/main?view=projects{% if filters.query %}&{{ filters.query }}{% endif %}{% if filters.panel_task %}&panel_task={{ filters.panel_task }}{% endif %}" hx-target="#app-main" hx-swap="outerHTML">Projects</button>
+        <button class="{% if filters.view == 'list' %}active{% endif %}" aria-pressed="{{ 'true' if filters.view == 'list' else 'false' }}" hx-get="/partials/main?view=list{% if filters.query %}&{{ filters.query }}{% endif %}{% if filters.panel_task %}&panel_task={{ filters.panel_task }}{% endif %}" hx-target="#app-main" hx-swap="outerHTML">List</button>
+        <button class="{% if filters.view == 'board' %}active{% endif %}" aria-pressed="{{ 'true' if filters.view == 'board' else 'false' }}" hx-get="/partials/main?view=board{% if filters.query %}&{{ filters.query }}{% endif %}{% if filters.panel_task %}&panel_task={{ filters.panel_task }}{% endif %}" hx-target="#app-main" hx-swap="outerHTML">Board</button>
+        <button class="{% if filters.view == 'gantt' %}active{% endif %}" aria-pressed="{{ 'true' if filters.view == 'gantt' else 'false' }}" hx-get="/partials/main?view=gantt{% if filters.query %}&{{ filters.query }}{% endif %}{% if filters.panel_task %}&panel_task={{ filters.panel_task }}{% endif %}" hx-target="#app-main" hx-swap="outerHTML">Gantt</button>
+        <button class="{% if filters.view == 'calendar' %}active{% endif %}" aria-pressed="{{ 'true' if filters.view == 'calendar' else 'false' }}" hx-get="/partials/main?view=calendar{% if filters.query %}&{{ filters.query }}{% endif %}{% if filters.panel_task %}&panel_task={{ filters.panel_task }}{% endif %}" hx-target="#app-main" hx-swap="outerHTML">Calendar</button>
+        <button class="{% if filters.view == 'milestones' %}active{% endif %}" aria-pressed="{{ 'true' if filters.view == 'milestones' else 'false' }}" hx-get="/partials/main?view=milestones{% if filters.query %}&{{ filters.query }}{% endif %}{% if filters.panel_task %}&panel_task={{ filters.panel_task }}{% endif %}" hx-target="#app-main" hx-swap="outerHTML">Milestones</button>
+        <button class="{% if filters.view == 'projects' %}active{% endif %}" aria-pressed="{{ 'true' if filters.view == 'projects' else 'false' }}" hx-get="/partials/main?view=projects{% if filters.query %}&{{ filters.query }}{% endif %}{% if filters.panel_task %}&panel_task={{ filters.panel_task }}{% endif %}" hx-target="#app-main" hx-swap="outerHTML">Projects</button>
       </div>
       <details class="toolbar-menu new-menu" data-menu>
         <summary class="new-plus" title="Create new" aria-label="Create new"><span class="new-plus-icon" aria-hidden="true"></span></summary>
         <div class="toolbar-menu-pop">
-          <button type="button" class="menu-item" data-menu-item data-panel-open="1"
-            hx-get="/new/task/panel?view={{ filters.view }}&milestone={{ filters.milestone }}{% if filters.show_closed %}&show_closed=1{% endif %}&stale_days={{ filters.stale_days }}"
+          <button type="button" class="menu-item" data-menu-item data-panel-open="1" data-new-task
+            hx-get="/new/task/panel?view={{ filters.view }}{% if filters.query %}&{{ filters.query }}{% endif %}"
             hx-target="#task-panel" hx-swap="innerHTML">Task</button>
           <button type="button" class="menu-item" data-menu-item data-panel-open="1"
-            hx-get="/new/milestone/panel?view={{ filters.view }}{% if filters.show_closed %}&show_closed=1{% endif %}&stale_days={{ filters.stale_days }}"
+            hx-get="/new/milestone/panel?view={{ filters.view }}{% if filters.query %}&{{ filters.query }}{% endif %}"
             hx-target="#task-panel" hx-swap="innerHTML">Milestone</button>
           <button type="button" class="menu-item" data-menu-item data-panel-open="1"
-            hx-get="/new/project/panel?view={{ filters.view }}{% if filters.show_closed %}&show_closed=1{% endif %}&stale_days={{ filters.stale_days }}"
+            hx-get="/new/project/panel?view={{ filters.view }}{% if filters.query %}&{{ filters.query }}{% endif %}"
             hx-target="#task-panel" hx-swap="innerHTML">Project</button>
         </div>
       </details>
@@ -36,6 +42,7 @@
         <summary>
           <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M3 5h18l-7 8v6l-4 2v-8z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
           Filter
+          {% if filters.pills %}<span class="filter-count">{{ filters.pills|length }}</span>{% endif %}
         </summary>
         <div class="filter-pop">
           <form class="add-filter" hx-get="/partials/main" hx-target="#app-main" hx-swap="outerHTML">
@@ -47,7 +54,7 @@
             {% if filters.calendar_month %}<input type="hidden" name="calendar_month" value="{{ filters.calendar_month }}">{% endif %}
             {% if filters.calendar_year %}<input type="hidden" name="calendar_year" value="{{ filters.calendar_year }}">{% endif %}
             {% if filters.hide_old %}<input type="hidden" name="hide_old" value="1">{% endif %}
-            {% if filters.hide_done %}<input type="hidden" name="hide_done" value="1">{% endif %}
+            {% if filters.hide_done %}<input type="hidden" name="hide_done" value="1">{% else %}<input type="hidden" name="show_done" value="1">{% endif %}
             <input type="hidden" name="stale_days" value="{{ filters.stale_days }}">
             <span class="add-label">Keyword</span>
             <div class="add-row">
@@ -65,13 +72,13 @@
             <input type="hidden" name="view" value="{{ filters.view }}">
             {% if filters.calendar_month %}<input type="hidden" name="calendar_month" value="{{ filters.calendar_month }}">{% endif %}
             {% if filters.calendar_year %}<input type="hidden" name="calendar_year" value="{{ filters.calendar_year }}">{% endif %}
-            <span class="add-label">Old tasks</span>
+            <span class="add-label">Older tasks</span>
             <div class="add-row add-row-tight">
               <label class="toggle-label">
                 <input type="checkbox" name="hide_old" value="1" {% if filters.hide_old %}checked{% endif %}>
-                Hide old stuff
+                Hide completed tasks older than
               </label>
-              {% if filters.hide_done %}<input type="hidden" name="hide_done" value="1">{% endif %}
+              {% if filters.hide_done %}<input type="hidden" name="hide_done" value="1">{% else %}<input type="hidden" name="show_done" value="1">{% endif %}
               <input type="number" name="stale_days" min="1" max="365" value="{{ filters.stale_days }}" class="stale-days-input">
               <span class="muted">days</span>
             </div>
@@ -88,11 +95,11 @@
             {% if filters.calendar_year %}<input type="hidden" name="calendar_year" value="{{ filters.calendar_year }}">{% endif %}
             {% if filters.hide_old %}<input type="hidden" name="hide_old" value="1">{% endif %}
             <input type="hidden" name="stale_days" value="{{ filters.stale_days }}">
-            <span class="add-label">Done tasks</span>
+            <span class="add-label">Completed tasks</span>
             <div class="add-row add-row-tight">
               <label class="toggle-label">
-                <input type="checkbox" name="hide_done" value="1" {% if filters.hide_done %}checked{% endif %}>
-                Hide done
+                <input type="checkbox" name="show_done" value="1" {% if not filters.hide_done %}checked{% endif %}>
+                Show completed
               </label>
             </div>
           </form>
@@ -107,9 +114,9 @@
               {% if filters.calendar_month %}<input type="hidden" name="calendar_month" value="{{ filters.calendar_month }}">{% endif %}
               {% if filters.calendar_year %}<input type="hidden" name="calendar_year" value="{{ filters.calendar_year }}">{% endif %}
               {% if filters.hide_old %}<input type="hidden" name="hide_old" value="1">{% endif %}
-              {% if filters.hide_done %}<input type="hidden" name="hide_done" value="1">{% endif %}
+              {% if filters.hide_done %}<input type="hidden" name="hide_done" value="1">{% else %}<input type="hidden" name="show_done" value="1">{% endif %}
               <input type="hidden" name="stale_days" value="{{ filters.stale_days }}">
-              <span class="add-label">By Project</span>
+              <span class="add-label">Project</span>
               <details class="project-filter-menu">
                 <summary>
                   Select projects
@@ -135,7 +142,7 @@
             {% if filters.calendar_month %}<input type="hidden" name="calendar_month" value="{{ filters.calendar_month }}">{% endif %}
             {% if filters.calendar_year %}<input type="hidden" name="calendar_year" value="{{ filters.calendar_year }}">{% endif %}
             {% if filters.hide_old %}<input type="hidden" name="hide_old" value="1">{% endif %}
-            {% if filters.hide_done %}<input type="hidden" name="hide_done" value="1">{% endif %}
+            {% if filters.hide_done %}<input type="hidden" name="hide_done" value="1">{% else %}<input type="hidden" name="show_done" value="1">{% endif %}
             <input type="hidden" name="stale_days" value="{{ filters.stale_days }}">
             <span class="add-label">Date range</span>
             <div class="add-row">
@@ -148,19 +155,17 @@
       </details>
     </div>
 
+    {% if filters.pills %}
     <div class="toolbar-pills">
       {% for pill in filters.pills %}
         <button class="pill" {% if pill.color %}style="background: {{ pill.color }}22; border-color: {{ pill.color }}; color: {{ pill.color }}"{% endif %} hx-get="/partials/main?{{ pill.remove }}" hx-target="#app-main" hx-swap="outerHTML">{{ pill.label }}<span class="x">×</span></button>
-      {% else %}
-        <span class="muted no-filters">No filters applied</span>
       {% endfor %}
-      {% if filters.pills %}
-        <button class="pill clear" hx-get="/partials/main?view={{ filters.view }}" hx-target="#app-main" hx-swap="outerHTML">Clear all</button>
-      {% endif %}
+      <button class="pill clear" hx-get="/partials/main?view={{ filters.view }}" hx-target="#app-main" hx-swap="outerHTML">Clear</button>
     </div>
+    {% endif %}
 
-    {% if git_message and git_message_level == 'error' %}
-      <div class="git-toast error" role="alert">
+    {% if git_message %}
+      <div class="git-toast {{ git_message_level or 'success' }}" role="status">
         <span class="git-toast-state" aria-hidden="true">⚠</span>
         <span class="git-toast-msg">{{ git_message }}</span>
         <button type="button" class="git-toast-close" aria-label="Dismiss" onclick="this.closest('.git-toast').remove()">×</button>
@@ -233,7 +238,9 @@
     aria-orientation="vertical"
   ></button>
   <aside id="task-panel" class="side-panel{% if not selected_task and not selected_milestone and not selected_project %} side-panel-empty{% endif %}">
-    {% if selected_task %}
+    {% if new_task %}
+      {% include "partials/new_task_panel.html" %}
+    {% elif selected_task %}
       {% include "partials/task_panel.html" %}
     {% elif selected_milestone %}
       {% include "partials/milestone_panel.html" %}

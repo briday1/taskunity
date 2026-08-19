@@ -4,9 +4,6 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ app_name }} · {{ workspace_name }}</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/app.css">
   <script src="/static/chart.umd.min.js"></script>
   <script src="/static/chartjs-adapter-date-fns.bundle.min.js"></script>
@@ -140,6 +137,73 @@
       var THEME_KEY = 'taskunity.theme';
       var PANE_KEY = 'taskunity.sidePaneWidth';
       var AI_PANE_KEY = 'taskunity.aiPaneWidth';
+      var UI_STATE_KEY = 'taskunity.workspaceState.v2';
+
+      function mainStateQuery(main) {
+        return main && main.dataset ? (main.dataset.stateQuery || '') : '';
+      }
+
+      function rememberMainState(main) {
+        var query = mainStateQuery(main);
+        if (!query) return;
+        try { localStorage.setItem(UI_STATE_KEY, query); } catch (_) {}
+        var nextUrl = '/?' + query;
+        if (window.location.pathname === '/' && (window.location.search || '') !== '?' + query) {
+          window.history.replaceState({ taskunity: true }, '', nextUrl);
+        }
+      }
+
+      function restoreMainState() {
+        var main = document.getElementById('app-main');
+        var saved = '';
+        try { saved = localStorage.getItem(UI_STATE_KEY) || ''; } catch (_) {}
+        if (!window.location.search && saved && saved !== mainStateQuery(main) && window.htmx) {
+          window.htmx.ajax('GET', '/partials/main?' + saved, { target: '#app-main', swap: 'outerHTML' });
+          return;
+        }
+        rememberMainState(main);
+      }
+
+      document.body.addEventListener('htmx:beforeRequest', function (e) {
+        var elt = e && e.detail ? e.detail.elt : null;
+        var target = elt && elt.closest ? elt.closest('[hx-target="#app-main"]') : null;
+        if (target || (elt && elt.getAttribute && elt.getAttribute('hx-target') === '#app-main')) {
+          document.body.classList.add('app-navigating');
+        }
+      });
+      document.body.addEventListener('htmx:afterRequest', function () {
+        document.body.classList.remove('app-navigating');
+      });
+      document.body.addEventListener('htmx:afterSwap', function (e) {
+        var target = e && e.detail ? e.detail.target : null;
+        if (target && target.id === 'app-main') {
+          rememberMainState(document.getElementById('app-main'));
+          window.setTimeout(requestGitChipRefresh, 40);
+        }
+      });
+
+      window.setTimeout(restoreMainState, 0);
+
+      document.addEventListener('keydown', function (e) {
+        var tag = e.target && e.target.tagName ? e.target.tagName.toLowerCase() : '';
+        var typing = tag === 'input' || tag === 'textarea' || tag === 'select' || e.target.isContentEditable;
+        if (typing || e.ctrlKey || e.metaKey || e.altKey) return;
+        if (e.key.toLowerCase() === 'n') {
+          var create = document.querySelector('[data-new-task]');
+          if (create) { create.click(); e.preventDefault(); }
+        } else if (e.key === '/') {
+          var search = document.querySelector('.filter-pop input[name="q"]');
+          var menu = search && search.closest('details');
+          if (menu) menu.open = true;
+          if (search) { search.focus(); search.select(); e.preventDefault(); }
+        } else if (e.key === 'Escape') {
+          var layout = document.getElementById('app-main');
+          if (layout && !layout.classList.contains('panel-collapsed')) {
+            var close = document.querySelector('#task-panel [data-panel-collapse]');
+            if (close) { close.click(); e.preventDefault(); }
+          }
+        }
+      });
 
       // --- Theme ---
       (function () {
@@ -383,6 +447,21 @@
           var picker = e.target.closest('[data-project-picker]');
           if (picker) setProject(picker, val, '', val);
         }
+      });
+
+      function initializeProjectPickers(root) {
+        (root || document).querySelectorAll('[data-project-picker]').forEach(function (picker) {
+          var hidden = picker.querySelector('input[name="project"]');
+          if (!hidden || !hidden.value) return;
+          var selected = Array.prototype.find.call(picker.querySelectorAll('.project-dd-item'), function (item) {
+            return item.dataset.value === hidden.value;
+          });
+          if (selected) setProject(picker, selected.dataset.value, selected.dataset.color, selected.dataset.label);
+        });
+      }
+      initializeProjectPickers(document);
+      document.body.addEventListener('htmx:afterSwap', function (e) {
+        initializeProjectPickers(e && e.detail ? e.detail.target : document);
       });
 
       function depRefresh(picker) {

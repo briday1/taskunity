@@ -1,19 +1,21 @@
 <div class="panel-scroll" data-ai-context-url="/ai/panel/milestone/{{ selected_milestone.id }}?view={{ filters.view }}{% if filters.show_closed %}&show_closed=1{% endif %}&stale_days={{ filters.stale_days }}">
   <div class="panel-heading sticky">
-    <div>
-      <span class="ms-status {{ selected_milestone.status }}">{{ selected_milestone.status }}</span>
+    <div class="panel-heading-copy">
+      <span class="panel-eyebrow">Milestone · {{ selected_milestone.status }}</span>
       <h2>{{ selected_milestone.title }}</h2>
     </div>
-    <div class="task-panel-title-row">
-      <button type="button" class="btn-link task-collapse-btn" data-panel-collapse title="Collapse details" aria-label="Collapse details">×</button>
+    <div class="panel-header-actions">
+      <button type="button" class="btn-link task-collapse-btn" data-panel-collapse title="Close details" aria-label="Close details">×</button>
     </div>
   </div>
 
-  <form hx-post="/milestones/{{ selected_milestone.id }}/save" hx-target="#app-main" hx-swap="outerHTML" class="task-form" data-milestone-edit-form>
+  <form hx-post="/milestones/{{ selected_milestone.id }}/save" hx-target="#app-main" hx-swap="outerHTML" class="task-form entity-form" data-milestone-edit-form>
     <input type="hidden" name="f_view" value="{{ filters.view }}">
     <input type="hidden" name="f_show_closed" value="{% if filters.show_closed %}1{% endif %}">
+    <input type="hidden" name="f_hide_done" value="{% if filters.hide_done %}1{% endif %}">
+    <input type="hidden" name="f_hide_old" value="{% if filters.hide_old %}1{% endif %}">
     <input type="hidden" name="f_stale_days" value="{{ filters.stale_days }}">
-    <label>Title<input name="title" value="{{ selected_milestone.title }}" required></label>
+    <label class="title-field">Title<input name="title" value="{{ selected_milestone.title }}" required></label>
     <div class="form-grid">
       <label>Status
         <select name="status">
@@ -32,7 +34,7 @@
       <label>Target date<input type="date" name="target_date" value="{{ selected_milestone.target_date or '' }}"></label>
     </div>
     <div class="panel-actions-row">
-      <button type="submit">Save Milestone</button>
+      <button type="submit">Save changes</button>
     </div>
   </form>
 
@@ -44,7 +46,7 @@
         <input type="text" class="ms-add-input" placeholder="Add a task — search by name…" autocomplete="off">
         <div class="ms-add-menu" hidden>
           {% for t in task_index %}
-            <button type="button" class="ms-add-option" data-id="{{ t.id }}" data-search="{{ (t.title ~ ' ' ~ t.id ~ ' ' ~ t.project)|lower }}" hx-post="/milestones/{{ selected_milestone.id }}/tasks/{{ t.id }}/add?f_view={{ filters.view }}{% if filters.show_closed %}&f_show_closed=1{% endif %}&f_stale_days={{ filters.stale_days }}" hx-target="#app-main" hx-swap="outerHTML"{% if t.id in selected_milestone.task_ids %} hidden{% endif %}>
+            <button type="button" class="ms-add-option" data-id="{{ t.id }}" data-search="{{ (t.title ~ ' ' ~ t.id ~ ' ' ~ t.project)|lower }}" hx-post="/milestones/{{ selected_milestone.id }}/tasks/{{ t.id }}/add?f_view={{ filters.view }}&f_hide_done={% if filters.hide_done %}1{% endif %}&f_hide_old={% if filters.hide_old %}1{% endif %}&f_stale_days={{ filters.stale_days }}" hx-target="#app-main" hx-swap="outerHTML"{% if t.id in selected_milestone.task_ids %} hidden{% endif %}>
               <span class="dep-option-title">{{ t.title }}</span>
               <span class="dep-option-meta">
                 <span class="dep-status {{ t.status }}">{{ t.status }}</span>
@@ -63,7 +65,7 @@
       <ul class="ms-task-list">
         {% for t in rollup.tasks %}
           <li class="ms-task {{ t.status }}">
-            <button type="button" class="ms-task-open" hx-get="/tasks/{{ t.id }}/panel?view={{ filters.view }}&milestone={{ selected_milestone.id }}{% if filters.show_closed %}&show_closed=1{% endif %}&stale_days={{ filters.stale_days }}" hx-target="#task-panel" hx-swap="innerHTML">
+            <button type="button" class="ms-task-open" hx-get="/tasks/{{ t.id }}/panel?view={{ filters.view }}&milestone={{ selected_milestone.id }}{% if filters.hide_old %}&hide_old=1{% endif %}{% if filters.hide_done %}&hide_done=1{% endif %}&stale_days={{ filters.stale_days }}" hx-target="#task-panel" hx-swap="innerHTML">
               <span class="ms-task-title">{{ t.title }}</span>
               <span class="ms-task-meta">
                 <span class="status-pill {{ t.status }}">{{ t.status }}</span>
@@ -71,18 +73,18 @@
                 {% if t.due_date %}<span class="due-label {{ t.due_date|due_class }}">due {{ t.due_date }}</span>{% endif %}
               </span>
             </button>
-            <button type="button" class="ms-task-remove" hx-post="/milestones/{{ selected_milestone.id }}/tasks/{{ t.id }}/remove?f_view={{ filters.view }}{% if filters.show_closed %}&f_show_closed=1{% endif %}&f_stale_days={{ filters.stale_days }}" hx-target="#app-main" hx-swap="outerHTML" title="Remove from milestone" aria-label="Remove from milestone">×</button>
+            <button type="button" class="ms-task-remove" hx-post="/milestones/{{ selected_milestone.id }}/tasks/{{ t.id }}/remove?f_view={{ filters.view }}&f_hide_done={% if filters.hide_done %}1{% endif %}&f_hide_old={% if filters.hide_old %}1{% endif %}&f_stale_days={{ filters.stale_days }}" hx-target="#app-main" hx-swap="outerHTML" title="Remove from milestone" aria-label="Remove from milestone">×</button>
           </li>
         {% else %}
           <li class="muted ms-empty">No tasks yet. Search above to add one, or use “+ New task” below.</li>
         {% endfor %}
       </ul>
-      <form hx-post="/milestones/{{ selected_milestone.id }}/tasks/new" hx-target="#app-main" hx-swap="outerHTML" class="ms-new-task-bar">
-        <input type="hidden" name="f_view" value="{{ filters.view }}">
-        <input type="hidden" name="f_show_closed" value="{% if filters.show_closed %}1{% endif %}">
-        <input type="hidden" name="f_stale_days" value="{{ filters.stale_days }}">
-        <button type="submit" class="ms-new-task-btn" title="Quickly add a new task to this milestone">+ New task</button>
-      </form>
+      <div class="ms-new-task-bar">
+        <button type="button" class="ms-new-task-btn"
+                hx-get="/new/task/panel?view={{ filters.view }}&amp;milestone={{ selected_milestone.id }}{% if filters.hide_old %}&amp;hide_old=1{% endif %}{% if filters.hide_done %}&amp;hide_done=1{% else %}&amp;show_done=1{% endif %}&amp;stale_days={{ filters.stale_days }}"
+                hx-target="#task-panel" hx-swap="innerHTML"
+                title="Add tasks to this milestone">+ New task</button>
+      </div>
     </div>
     {% if rollup and rollup.missing %}
       <p class="muted ms-missing">⚠ {{ rollup.missing|length }} referenced task(s) no longer exist.</p>

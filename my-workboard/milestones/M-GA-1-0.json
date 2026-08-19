@@ -5,12 +5,6 @@
   "color": "#8a5cd1",
   "summary": "General availability of 1.0 with enterprise and growth readiness.",
   "description": "Everything needed to charge money and sell to enterprises: SSO, billing, a polished design system, and a refreshed marketing site.",
-  "projects": [
-    "Apollo",
-    "Gemini",
-    "Helios",
-    "Orion"
-  ],
   "start_date": "2026-07-15",
   "target_date": "2026-10-01",
   "task_ids": [

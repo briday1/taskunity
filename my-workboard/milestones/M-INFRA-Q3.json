@@ -5,10 +5,6 @@
   "color": "#2e9bb0",
   "summary": "Reliability, security, and data-compliance hardening for Q3.",
   "description": "Platform and data work to make the service production-grade: Kubernetes, observability, secrets, DR, and GDPR tooling.",
-  "projects": [
-    "Mercury",
-    "Atlas"
-  ],
   "start_date": "2026-06-05",
   "target_date": "2026-09-15",
   "task_ids": [
@@ -25,4 +21,3 @@
   "attachments": [],
   "extra": {}
 }
-

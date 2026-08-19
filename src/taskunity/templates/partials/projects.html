@@ -1,6 +1,5 @@
-<section class="panel">
-  <div class="panel-heading">
-    <h2>Projects</h2>
+<section class="panel collection-panel projects-panel">
+  <div class="panel-heading view-heading">
     <span>{{ projects|length }} project{{ '' if projects|length == 1 else 's' }}</span>
   </div>
 
@@ -10,13 +9,20 @@
         {% set r = project_rollups.get(p.id, {'total': 0, 'done': 0, 'working': 0, 'progress': 0}) %}
         {% set p_state = 'done' if r.progress >= 100 and r.total > 0 else ('active' if r.working > 0 else 'planned') %}
         <div class="milestone-list-item compact milestone-open-row project-row" style="--ms-color: {{ p.color }}">
+          <form class="project-open-form"
+                hx-get="/partials/main" hx-target="#app-main" hx-swap="outerHTML"
+                data-open-panel-url="/projects/{{ p.id }}/panel?view=projects{% if filters.hide_old %}&hide_old=1{% endif %}{% if filters.hide_done %}&hide_done=1{% else %}&show_done=1{% endif %}&stale_days={{ filters.stale_days }}">
+            <input type="hidden" name="view" value="list">
+            <input type="hidden" name="project" value="{{ p.id }}">
+            {% if filters.date_from %}<input type="hidden" name="date_from" value="{{ filters.date_from }}">{% endif %}
+            {% if filters.date_to %}<input type="hidden" name="date_to" value="{{ filters.date_to }}">{% endif %}
+            {% if filters.q %}<input type="hidden" name="q" value="{{ filters.q }}">{% endif %}
+            {% if filters.hide_old %}<input type="hidden" name="hide_old" value="1">{% endif %}
+            {% if filters.hide_done %}<input type="hidden" name="hide_done" value="1">{% else %}<input type="hidden" name="show_done" value="1">{% endif %}
+            <input type="hidden" name="stale_days" value="{{ filters.stale_days }}">
           <button
-            type="button"
+            type="submit"
             class="project-open-btn"
-            hx-get="/partials/main?view=list&project={{ p.id }}{% if filters.show_closed %}&show_closed=1{% endif %}{% if filters.hide_done %}&hide_done=1{% endif %}&stale_days={{ filters.stale_days }}"
-            hx-target="#app-main"
-            hx-swap="outerHTML"
-            data-open-panel-url="/projects/{{ p.id }}/panel?view=projects{% if filters.show_closed %}&show_closed=1{% endif %}&stale_days={{ filters.stale_days }}"
             title="View tasks for {{ p.name }}"
           >
               <div class="milestone-list-head">
@@ -33,6 +39,10 @@
               </div>
               {% if p.description %}<p class="mc-summary clamp-1">{{ p.description }}</p>{% endif %}
           </button>
+          </form>
+          <button type="button" class="milestone-edit-btn"
+                  hx-get="/projects/{{ p.id }}/panel?view=projects{% if filters.hide_old %}&hide_old=1{% endif %}{% if filters.hide_done %}&hide_done=1{% else %}&show_done=1{% endif %}&stale_days={{ filters.stale_days }}"
+                  hx-target="#task-panel" hx-swap="innerHTML" title="Edit {{ p.name }}" aria-label="Edit {{ p.name }}">âœŽ</button>
         </div>
       {% endfor %}
     </div>
@@ -40,13 +50,7 @@
     <p class="muted">No projects yet. Add one below.</p>
   {% endif %}
 
-  <form hx-post="/projects" hx-target="#app-main" hx-swap="outerHTML" class="project-form new-project">
-    <h3>Add project</h3>
-    <div class="project-form-row">
-      <label>Name<input name="name" placeholder="e.g. Apollo" required></label>
-      <label>Color<input type="color" name="color" value="#2e6fd8"></label>
-    </div>
-    <label>Description<input name="description" placeholder="Optional description"></label>
-    <button type="submit">Add Project</button>
-  </form>
+  <button type="button" class="collection-create"
+          hx-get="/new/project/panel?view={{ filters.view }}{% if filters.query %}&{{ filters.query }}{% endif %}"
+          hx-target="#task-panel" hx-swap="innerHTML">+ Add project</button>
 </section>

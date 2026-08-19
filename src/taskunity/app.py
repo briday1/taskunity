@@ -47,7 +47,6 @@ from .task_store import (
     delete_task,
     ensure_workspace,
     git_lfs_init,
-    git_lfs_status,
     git_status,
     git_sync,
     load_all_milestones,
@@ -243,6 +242,10 @@ def _preview_text(value: str | None, max_len: int = 180) -> str:
 def create_app(workspace: str | Path = ".") -> FastAPI:
     workspace = Path(workspace).resolve()
     ensure_workspace(workspace)
+    # Resolve legacy name-based references once at startup. Re-running this
+    # scan for every HTMX fragment made even tiny panel opens pay for a full
+    # workspace traversal.
+    normalize_task_project_refs(workspace)
     initial_config = load_workspace_config(workspace)
     app_name = initial_config["app_name"]
 
@@ -258,8 +261,43 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
     VIEWS = {"list", "board", "gantt", "calendar", "projects", "milestones"}
     STALE_CLOSED_DAYS = 30
 
+    git_cache: dict[str, object] = {"value": None}
+
+    def git_placeholder() -> dict[str, object]:
+        return {
+            "loading": True,
+            "tracked": False,
+            "branch": "",
+            "upstream": None,
+            "ahead": 0,
+            "behind": 0,
+            "dirty": 0,
+            "message": "Checking Git status…",
+        }
+
+    def cached_git_status(*, refresh: bool = False) -> dict[str, object]:
+        value = git_cache.get("value")
+        if refresh:
+            value = git_status(workspace)
+            value["loading"] = False
+            git_cache["value"] = value
+        return value if isinstance(value, dict) else git_placeholder()
+
     def parse_toggle(value: str | None) -> bool:
         return (value or "").strip().lower() in {"1", "true", "yes", "on"}
+
+    def parse_done_filter(hide_done: str | None, show_done: str | None = None) -> bool:
+        """Resolve the completed-task preference, hidden by default.
+
+        ``show_done`` is the explicit inverse needed by HTML checkboxes: an
+        unchecked checkbox sends no value, so absence can safely mean the
+        product default (hide completed tasks).
+        """
+        if parse_toggle(show_done):
+            return False
+        if parse_toggle(hide_done):
+            return True
+        return True
 
     def parse_stale_days(value: str | int | None) -> int:
         try:
@@ -1130,7 +1168,7 @@ Rules:
     def build_query(
         projects: list[str], date_from: str, date_to: str, q: str, view: str = "", sort: str = "",
         milestone: str = "", show_closed: bool = False, stale_days: int = STALE_CLOSED_DAYS,
-        calendar_month: int | None = None, calendar_year: int | None = None, hide_done: bool = False,
+        calendar_month: int | None = None, calendar_year: int | None = None, hide_done: bool = True,
         hide_old: bool | None = None, sort_dir: str = "",
     ) -> str:
         params: list[tuple[str, str]] = [("project", p) for p in projects if p]
@@ -1154,6 +1192,8 @@ Rules:
             params.append(("show_closed", "1"))
         if hide_done:
             params.append(("hide_done", "1"))
+        else:
+            params.append(("show_done", "1"))
         if stale_days != STALE_CLOSED_DAYS:
             params.append(("stale_days", str(stale_days)))
         if calendar_month is not None:
@@ -1179,12 +1219,14 @@ Rules:
         selected_project_id: str = "",
         show_closed: bool = False,
         hide_old: bool | None = None,
-        hide_done: bool = False,
+        hide_done: bool = True,
         stale_days: int = STALE_CLOSED_DAYS,
         calendar_month: int | None = None,
         calendar_year: int | None = None,
         git_message: str = "",
         git_message_level: str = "",
+        new_task: bool = False,
+        new_task_project: str = "",
     ) -> dict:
         projects = [p for p in (projects or []) if p]
         q = (q or "").strip()
@@ -1221,7 +1263,6 @@ Rules:
         year_next_month = focus_month
         year_next_year = focus_year + 1
         config = ui_config()
-        normalize_task_project_refs(workspace)
         all_projects = load_all_projects(workspace)
         project_name_by_id = {p.id: p.name for p in all_projects if p.id}
         project_by_name = {p.name: p for p in all_projects}
@@ -1371,15 +1412,6 @@ Rules:
                 }
             )
 
-        if hide_done:
-            pills.append(
-                {
-                    "label": "Hide done",
-                    "color": "",
-                    "remove": build_query(projects, date_from, date_to, q, view, sort, milestone, show_closed, stale_days, focus_month, focus_year, hide_done=False, hide_old=hide_old, sort_dir=sort_dir),
-                }
-            )
-
         return {
             "request": request,
             "app_name": config["app_name"],
@@ -1398,12 +1430,19 @@ Rules:
             "workspace": workspace,
             "projects": all_projects,
             "project_rollups": project_rollups,
+            "milestone_open_queries": {
+                m.id: build_query(
+                    projects, date_from, date_to, q, "list", sort, m.id, show_closed,
+                    stale_days, focus_month, focus_year, hide_done, hide_old=hide_old,
+                    sort_dir=sort_dir,
+                )
+                for m in milestones
+            },
             "project_colors": colors,
             "project_name_by_id": project_name_by_id,
             "sorts": SORTS,
             "calendar": build_calendar(filtered, date_from, date_to, focus_month, focus_year),
-            "git": git_status(workspace),
-            "git_lfs": git_lfs_status(workspace),
+            "git": cached_git_status(),
             "git_message": git_message,
             "git_message_level": git_message_level,
             "task_activity_entries": build_task_activity_entries(selected_task),
@@ -1418,6 +1457,8 @@ Rules:
                 for t in sort_tasks(all_tasks, "title", "asc")
             ],
             "task_titles": {t.id: t.title for t in all_tasks},
+            "new_task": new_task,
+            "new_task_project": (new_task_project or (projects[0] if len(projects) == 1 else "")).strip(),
             **ai_config(),
             "filters": {
                 "projects": projects,
@@ -1432,6 +1473,7 @@ Rules:
                 "calendar_month": focus_month,
                 "calendar_year": focus_year,
                 "query": build_query(projects, date_from, date_to, q, "", sort, milestone, show_closed, stale_days, focus_month, focus_year, hide_done, hide_old=hide_old, sort_dir=sort_dir),
+                "state_query": build_query(projects, date_from, date_to, q, view, sort, milestone, show_closed, stale_days, focus_month, focus_year, hide_done, hide_old=hide_old, sort_dir=sort_dir),
                 "query_no_sort": build_query(projects, date_from, date_to, q, "", "", milestone, show_closed, stale_days, focus_month, focus_year, hide_done, hide_old=hide_old),
                 "calendar_query": build_query(projects, date_from, date_to, q, "calendar", sort, milestone, show_closed, stale_days, focus_month, focus_year, hide_done, hide_old=hide_old, sort_dir=sort_dir),
                 "calendar_prev_query": build_query(projects, date_from, date_to, q, "calendar", sort, milestone, show_closed, stale_days, prev_month, prev_year, hide_done, hide_old=hide_old, sort_dir=sort_dir),
@@ -1465,7 +1507,6 @@ Rules:
         stale_days: int = STALE_CLOSED_DAYS,
     ) -> dict:
         projects = [p for p in (projects or []) if p]
-        normalize_task_project_refs(workspace)
         all_projects = load_all_projects(workspace)
         all_tasks = load_all_tasks(workspace)
         project_name_by_id = {p.id: p.name for p in all_projects if p.id}
@@ -1524,6 +1565,48 @@ Rules:
             },
         }
 
+    def composer_context(
+        request: Request,
+        *,
+        projects: list[str] | None = None,
+        date_from: str = "",
+        date_to: str = "",
+        q: str = "",
+        view: str = "list",
+        milestone: str = "",
+        show_closed: bool = False,
+        hide_old: bool = False,
+        hide_done: bool = True,
+        stale_days: int = STALE_CLOSED_DAYS,
+    ) -> dict:
+        """Build the small context needed by create panels.
+
+        These panels do not need tasks, calendars, rollups, Git subprocesses,
+        or dashboard aggregation. Keeping this path narrow makes opening a
+        composer effectively immediate even in a large workspace.
+        """
+        requested_projects = [value for value in (projects or []) if value]
+        all_projects = load_all_projects(workspace)
+        project_by_name = {project.name: project.id for project in all_projects}
+        resolved_projects = [project_by_name.get(value, value) for value in requested_projects]
+        return {
+            "request": request,
+            "projects": all_projects,
+            "new_task_project": resolved_projects[0] if len(resolved_projects) == 1 else "",
+            "filters": {
+                "projects": resolved_projects,
+                "date_from": date_from,
+                "date_to": date_to,
+                "q": (q or "").strip(),
+                "view": view if view in VIEWS else "list",
+                "milestone": (milestone or "").strip(),
+                "show_closed": bool(show_closed),
+                "hide_old": bool(hide_old),
+                "hide_done": bool(hide_done),
+                "stale_days": stale_days,
+            },
+        }
+
     @app.get("/", response_class=HTMLResponse)
     def index(
         request: Request,
@@ -1538,6 +1621,7 @@ Rules:
         show_closed: str = "",
         hide_old: str = "",
         hide_done: str = "",
+        show_done: str = "",
         stale_days: str = "",
     ) -> HTMLResponse:
         return templates.TemplateResponse(
@@ -1555,7 +1639,7 @@ Rules:
                 milestone=milestone,
                 show_closed=parse_toggle(show_closed),
                 hide_old=parse_toggle(hide_old),
-                hide_done=parse_toggle(hide_done),
+                hide_done=parse_done_filter(hide_done, show_done),
                 stale_days=parse_stale_days(stale_days),
             ),
         )
@@ -1574,6 +1658,7 @@ Rules:
         show_closed: str = "",
         hide_old: str = "",
         hide_done: str = "",
+        show_done: str = "",
         stale_days: str = "",
         panel_task: str = "",
     ) -> HTMLResponse:
@@ -1592,7 +1677,7 @@ Rules:
                 milestone=milestone,
                 show_closed=parse_toggle(show_closed),
                 hide_old=parse_toggle(hide_old),
-                hide_done=parse_toggle(hide_done),
+                hide_done=parse_done_filter(hide_done, show_done),
                 stale_days=parse_stale_days(stale_days),
             ),
         )
@@ -1650,7 +1735,9 @@ Rules:
         f_milestone: str = Form(""),
         f_show_closed: str = Form(""),
         f_hide_done: str = Form(""),
+        f_hide_old: str = Form(""),
         f_stale_days: str = Form(str(STALE_CLOSED_DAYS)),
+        continue_creating: str = Form(""),
     ) -> HTMLResponse:
         task = create_task(workspace, (title or "New task").strip() or "New task")
         project_value = (project or "").strip()
@@ -1688,7 +1775,10 @@ Rules:
                 milestone=f_milestone,
                 show_closed=parse_toggle(f_show_closed),
                 hide_done=parse_toggle(f_hide_done),
+                hide_old=parse_toggle(f_hide_old),
                 stale_days=parse_stale_days(f_stale_days),
+                new_task=parse_toggle(continue_creating),
+                new_task_project=task.project_id,
             ),
         )
 
@@ -1697,17 +1787,30 @@ Rules:
         request: Request,
         view: str = "list",
         milestone: str = "",
+        project: list[str] = Query(default=[]),
+        date_from: str = "",
+        date_to: str = "",
+        q: str = "",
         show_closed: str = "",
+        hide_old: str = "",
+        hide_done: str = "",
+        show_done: str = "",
         stale_days: str = "",
     ) -> HTMLResponse:
         return templates.TemplateResponse(
             request,
             "partials/new_task_panel.html",
-            context(
+            composer_context(
                 request,
                 view=view,
                 milestone=milestone,
+                projects=project,
+                date_from=date_from,
+                date_to=date_to,
+                q=q,
                 show_closed=parse_toggle(show_closed),
+                hide_old=parse_toggle(hide_old),
+                hide_done=parse_done_filter(hide_done, show_done),
                 stale_days=parse_stale_days(stale_days),
             ),
         )
@@ -1717,15 +1820,20 @@ Rules:
         request: Request,
         view: str = "list",
         show_closed: str = "",
+        hide_old: str = "",
+        hide_done: str = "",
+        show_done: str = "",
         stale_days: str = "",
     ) -> HTMLResponse:
         return templates.TemplateResponse(
             request,
             "partials/new_milestone_panel.html",
-            context(
+            composer_context(
                 request,
                 view=view,
                 show_closed=parse_toggle(show_closed),
+                hide_old=parse_toggle(hide_old),
+                hide_done=parse_done_filter(hide_done, show_done),
                 stale_days=parse_stale_days(stale_days),
             ),
         )
@@ -1735,15 +1843,20 @@ Rules:
         request: Request,
         view: str = "list",
         show_closed: str = "",
+        hide_old: str = "",
+        hide_done: str = "",
+        show_done: str = "",
         stale_days: str = "",
     ) -> HTMLResponse:
         return templates.TemplateResponse(
             request,
             "partials/new_project_panel.html",
-            context(
+            composer_context(
                 request,
                 view=view,
                 show_closed=parse_toggle(show_closed),
+                hide_old=parse_toggle(hide_old),
+                hide_done=parse_done_filter(hide_done, show_done),
                 stale_days=parse_stale_days(stale_days),
             ),
         )
@@ -1774,6 +1887,7 @@ Rules:
         f_milestone: str = Form(""),
         f_show_closed: str = Form(""),
         f_hide_done: str = Form(""),
+        f_hide_old: str = Form(""),
         f_stale_days: str = Form(str(STALE_CLOSED_DAYS)),
     ) -> HTMLResponse:
         task = load_task(workspace, task_id)
@@ -1839,6 +1953,7 @@ Rules:
                 milestone=f_milestone,
                 show_closed=parse_toggle(f_show_closed),
                 hide_done=parse_toggle(f_hide_done),
+                hide_old=parse_toggle(f_hide_old),
                 stale_days=parse_stale_days(f_stale_days),
             ),
         )
@@ -1866,6 +1981,7 @@ Rules:
         f_milestone: str = Form(""),
         f_show_closed: str = Form(""),
         f_hide_done: str = Form(""),
+        f_hide_old: str = Form(""),
         f_stale_days: str = Form(str(STALE_CLOSED_DAYS)),
     ) -> HTMLResponse:
         task = load_task(workspace, task_id)
@@ -1965,6 +2081,7 @@ Rules:
                 milestone=f_milestone,
                 show_closed=parse_toggle(f_show_closed),
                 hide_done=parse_toggle(f_hide_done),
+                hide_old=parse_toggle(f_hide_old),
                 stale_days=parse_stale_days(f_stale_days),
             ),
         )
@@ -2062,12 +2179,24 @@ Rules:
         f_view: str = Form("list"),
         f_milestone: str = Form(""),
         f_show_closed: str = Form(""),
+        f_hide_done: str = Form(""),
+        f_hide_old: str = Form(""),
         f_stale_days: str = Form(str(STALE_CLOSED_DAYS)),
     ) -> HTMLResponse:
         parsed = json.loads(raw_json)
         task = Task.model_validate(parsed)
+        if task.project_id:
+            try:
+                task.project = load_project(workspace, task.project_id).name
+            except Exception:
+                task.project_id = ""
+        if not task.project_id and task.project:
+            project = register_project(workspace, task.project)
+            if project is not None:
+                task.project_id = project.id
+                task.project = project.name
+        task.depends_on = [ref for ref in task.depends_on if ref and ref != task.id]
         save_task(workspace, task)
-        register_project(workspace, task.project)
         return templates.TemplateResponse(
             request,
             "partials/main.html",
@@ -2081,6 +2210,8 @@ Rules:
                 view=f_view,
                 milestone=f_milestone,
                 show_closed=parse_toggle(f_show_closed),
+                hide_done=parse_toggle(f_hide_done),
+                hide_old=parse_toggle(f_hide_old),
                 stale_days=parse_stale_days(f_stale_days),
             ),
         )
@@ -2317,6 +2448,8 @@ Rules:
         f_view: str = Form("list"),
         f_milestone: str = Form(""),
         f_show_closed: str = Form(""),
+        f_hide_done: str = Form(""),
+        f_hide_old: str = Form(""),
         f_stale_days: str = Form(str(STALE_CLOSED_DAYS)),
     ) -> RedirectResponse:
         delete_task(workspace, task_id)
@@ -2331,6 +2464,12 @@ Rules:
             params.append(("milestone", f_milestone))
         if parse_toggle(f_show_closed):
             params.append(("show_closed", "1"))
+        if parse_toggle(f_hide_done):
+            params.append(("hide_done", "1"))
+        else:
+            params.append(("show_done", "1"))
+        if parse_toggle(f_hide_old):
+            params.append(("hide_old", "1"))
         if parse_stale_days(f_stale_days) != STALE_CLOSED_DAYS:
             params.append(("stale_days", str(parse_stale_days(f_stale_days))))
         params.append(("view", f_view))
@@ -2343,9 +2482,23 @@ Rules:
         description: str = Form(""),
         color: str = Form("#2e6fd8"),
         project_id: str = Form(""),
+        f_view: str = Form("projects"),
+        f_hide_done: str = Form(""),
+        f_hide_old: str = Form(""),
+        f_stale_days: str = Form(str(STALE_CLOSED_DAYS)),
     ) -> HTMLResponse:
         upsert_project(workspace, name, description.strip(), color, project_id=project_id)
-        return templates.TemplateResponse(request, "partials/main.html", context(request, view="projects"))
+        return templates.TemplateResponse(
+            request,
+            "partials/main.html",
+            context(
+                request,
+                view=f_view,
+                hide_done=parse_toggle(f_hide_done),
+                hide_old=parse_toggle(f_hide_old),
+                stale_days=parse_stale_days(f_stale_days),
+            ),
+        )
 
     @app.post("/projects/create-open", response_class=HTMLResponse)
     def create_project_open_route(
@@ -2355,6 +2508,8 @@ Rules:
         color: str = Form("#2e6fd8"),
         f_view: str = Form("list"),
         f_show_closed: str = Form(""),
+        f_hide_done: str = Form(""),
+        f_hide_old: str = Form(""),
         f_stale_days: str = Form(str(STALE_CLOSED_DAYS)),
     ) -> HTMLResponse:
         project = upsert_project(workspace, name.strip() or "New project", description.strip(), color)
@@ -2366,6 +2521,8 @@ Rules:
                 view=f_view,
                 selected_project_id=(project.id if project else ""),
                 show_closed=parse_toggle(f_show_closed),
+                hide_done=parse_toggle(f_hide_done),
+                hide_old=parse_toggle(f_hide_old),
                 stale_days=parse_stale_days(f_stale_days),
             ),
         )
@@ -2384,6 +2541,8 @@ Rules:
         target_date: str = Form(""),
         f_view: str = Form("list"),
         f_show_closed: str = Form(""),
+        f_hide_done: str = Form(""),
+        f_hide_old: str = Form(""),
         f_stale_days: str = Form(str(STALE_CLOSED_DAYS)),
     ) -> HTMLResponse:
         milestone = create_milestone(workspace, (title or "New milestone").strip() or "New milestone")
@@ -2403,6 +2562,8 @@ Rules:
                 view=view,
                 milestone=milestone.id,
                 show_closed=parse_toggle(f_show_closed),
+                hide_done=parse_toggle(f_hide_done),
+                hide_old=parse_toggle(f_hide_old),
                 stale_days=parse_stale_days(f_stale_days),
             ),
         )
@@ -2417,6 +2578,9 @@ Rules:
         q: str = "",
         view: str = "list",
         show_closed: str = "",
+        hide_old: str = "",
+        hide_done: str = "",
+        show_done: str = "",
         stale_days: str = "",
     ) -> HTMLResponse:
         return templates.TemplateResponse(
@@ -2431,6 +2595,8 @@ Rules:
                 view=view,
                 milestone=milestone_id,
                 show_closed=parse_toggle(show_closed),
+                hide_old=parse_toggle(hide_old),
+                hide_done=parse_done_filter(hide_done, show_done),
                 stale_days=parse_stale_days(stale_days),
             ),
         )
@@ -2658,6 +2824,8 @@ Rules:
         target_date: str = Form(""),
         f_view: str = Form("list"),
         f_show_closed: str = Form(""),
+        f_hide_done: str = Form(""),
+        f_hide_old: str = Form(""),
         f_stale_days: str = Form(str(STALE_CLOSED_DAYS)),
     ) -> HTMLResponse:
         milestone = load_milestone(workspace, milestone_id)
@@ -2677,6 +2845,8 @@ Rules:
                 view=f_view,
                 milestone=milestone.id,
                 show_closed=parse_toggle(f_show_closed),
+                hide_done=parse_toggle(f_hide_done),
+                hide_old=parse_toggle(f_hide_old),
                 stale_days=parse_stale_days(f_stale_days),
             ),
         )
@@ -2818,6 +2988,8 @@ Rules:
         task_id: str,
         f_view: str = "list",
         f_show_closed: str = "",
+        f_hide_done: str = "",
+        f_hide_old: str = "",
         f_stale_days: str = "",
     ) -> HTMLResponse:
         add_task_to_milestone(workspace, milestone_id, task_id)
@@ -2829,6 +3001,8 @@ Rules:
                 view=f_view,
                 milestone=milestone_id,
                 show_closed=parse_toggle(f_show_closed),
+                hide_done=parse_toggle(f_hide_done),
+                hide_old=parse_toggle(f_hide_old),
                 stale_days=parse_stale_days(f_stale_days),
             ),
         )
@@ -2840,6 +3014,8 @@ Rules:
         task_id: str,
         f_view: str = "list",
         f_show_closed: str = "",
+        f_hide_done: str = "",
+        f_hide_old: str = "",
         f_stale_days: str = "",
     ) -> HTMLResponse:
         remove_task_from_milestone(workspace, milestone_id, task_id)
@@ -2851,6 +3027,8 @@ Rules:
                 view=f_view,
                 milestone=milestone_id,
                 show_closed=parse_toggle(f_show_closed),
+                hide_done=parse_toggle(f_hide_done),
+                hide_old=parse_toggle(f_hide_old),
                 stale_days=parse_stale_days(f_stale_days),
             ),
         )
@@ -2874,11 +3052,14 @@ Rules:
         f_milestone: str = Form(""),
         f_show_closed: str = Form(""),
         f_hide_done: str = Form(""),
+        f_hide_old: str = Form(""),
         f_stale_days: str = Form(str(STALE_CLOSED_DAYS)),
         f_calendar_month: str = Form(""),
         f_calendar_year: str = Form(""),
     ) -> HTMLResponse:
         result = git_sync(workspace)
+        git_cache["value"] = None
+        cached_git_status(refresh=True)
         selected_task = None
         if f_panel_task:
             try:
@@ -2901,6 +3082,7 @@ Rules:
                 milestone=f_milestone,
                 show_closed=parse_toggle(f_show_closed),
                 hide_done=parse_toggle(f_hide_done),
+                hide_old=parse_toggle(f_hide_old),
                 stale_days=parse_stale_days(f_stale_days),
                 calendar_month=parse_calendar_month(f_calendar_month),
                 calendar_year=parse_calendar_year(f_calendar_year),
@@ -2923,6 +3105,7 @@ Rules:
         f_milestone: str = "",
         f_show_closed: str = "",
         f_hide_done: str = "",
+        f_hide_old: str = "",
         f_stale_days: str = str(STALE_CLOSED_DAYS),
         f_calendar_month: str = "",
         f_calendar_year: str = "",
@@ -2934,6 +3117,7 @@ Rules:
         even after mutations that don't touch ``#app-main``.
         """
         selected_task = None
+        cached_git_status(refresh=True)
         if f_panel_task:
             try:
                 selected_task = load_task(workspace, f_panel_task)
@@ -2955,6 +3139,7 @@ Rules:
                 milestone=f_milestone,
                 show_closed=parse_toggle(f_show_closed),
                 hide_done=parse_toggle(f_hide_done),
+                hide_old=parse_toggle(f_hide_old),
                 stale_days=parse_stale_days(f_stale_days),
                 calendar_month=parse_calendar_month(f_calendar_month),
                 calendar_year=parse_calendar_year(f_calendar_year),
@@ -3154,6 +3339,9 @@ Rules:
         view: str = "projects",
         stale_days: str = "",
         show_closed: str = "",
+        hide_old: str = "",
+        hide_done: str = "",
+        show_done: str = "",
     ) -> HTMLResponse:
         try:
             project = load_project(workspace, project_id)
@@ -3179,6 +3367,8 @@ Rules:
                     "view": view,
                     "stale_days": parse_stale_days(stale_days),
                     "show_closed": parse_toggle(show_closed),
+                    "hide_old": parse_toggle(hide_old),
+                    "hide_done": parse_done_filter(hide_done, show_done),
                 },
             },
         )
@@ -3222,6 +3412,8 @@ Rules:
         f_view: str = Form("projects"),
         f_stale_days: str = Form(str(STALE_CLOSED_DAYS)),
         f_show_closed: str = Form(""),
+        f_hide_done: str = Form(""),
+        f_hide_old: str = Form(""),
     ) -> HTMLResponse:
         try:
             project = load_project(workspace, project_id)
@@ -3234,7 +3426,14 @@ Rules:
         return templates.TemplateResponse(
             request,
             "partials/main.html",
-            context(request, view=f_view, stale_days=parse_stale_days(f_stale_days), show_closed=parse_toggle(f_show_closed)),
+            context(
+                request,
+                view=f_view,
+                stale_days=parse_stale_days(f_stale_days),
+                show_closed=parse_toggle(f_show_closed),
+                hide_done=parse_toggle(f_hide_done),
+                hide_old=parse_toggle(f_hide_old),
+            ),
         )
 
     @app.post("/projects/{project_id}/delete", response_class=HTMLResponse)

@@ -1,6 +1,9 @@
-<div class="git-chip{% if not git.tracked %} untracked{% endif %}" id="git-chip-slot"{% if git_chip_oob|default(false) %} hx-swap-oob="true"{% endif %}{% if git.tracked %} hx-get="/git/chip" hx-trigger="every 20s, refreshgit from:body" hx-target="this" hx-swap="outerHTML" hx-include="find [data-git-sync-form]"{% endif %} title="{% if git.tracked %}Branch {{ git.branch }}{% if git.upstream %} → {{ git.upstream }}{% endif %}{% else %}{{ git.message or 'This workspace is not inside a git repository' }}{% endif %}">
+<div class="git-chip{% if git.loading %} loading{% elif not git.tracked %} untracked{% endif %}" id="git-chip-slot"{% if git_chip_oob|default(false) %} hx-swap-oob="true"{% endif %} hx-get="/git/chip" hx-trigger="{% if git.loading %}load delay:20ms, {% endif %}every 20s, refreshgit from:body" hx-target="this" hx-swap="outerHTML" hx-include="find [data-git-sync-form]" title="{% if git.loading %}Checking Git status{% elif git.tracked %}Branch {{ git.branch }}{% if git.upstream %} → {{ git.upstream }}{% endif %}{% else %}{{ git.message or 'This workspace is not inside a git repository' }}{% endif %}">
   <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M12 3v12m0 0a3 3 0 1 0 0 6 3 3 0 0 0 0-6zm0-12a3 3 0 1 0 0 6 3 3 0 0 0 0-6zm6 6a3 3 0 1 0 0 6 3 3 0 0 0 0-6zm0 0c0 3-2 4-6 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-  {% if git.tracked %}
+  {% if git.loading %}
+    <span class="git-live-spinner" aria-hidden="true"></span>
+    <span class="git-branch">Checking…</span>
+  {% elif git.tracked %}
     <span class="git-branch">{{ git.branch or 'detached' }}</span>
     {% if git.upstream %}
       {% if git.ahead %}<span class="git-badge ahead" title="{{ git.ahead }} commit(s) ahead of {{ git.upstream }}">↑{{ git.ahead }}</span>{% endif %}
@@ -23,6 +26,7 @@
       <input type="hidden" name="f_milestone" value="{{ filters.milestone }}">
       <input type="hidden" name="f_show_closed" value="{% if filters.show_closed %}1{% endif %}">
       <input type="hidden" name="f_hide_done" value="{% if filters.hide_done %}1{% endif %}">
+      <input type="hidden" name="f_hide_old" value="{% if filters.hide_old %}1{% endif %}">
       <input type="hidden" name="f_stale_days" value="{{ filters.stale_days }}">
       <input type="hidden" name="f_calendar_month" value="{{ filters.calendar_month }}">
       <input type="hidden" name="f_calendar_year" value="{{ filters.calendar_year }}">
