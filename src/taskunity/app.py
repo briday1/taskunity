@@ -1499,12 +1499,16 @@ Rules:
         date_from: str = "",
         date_to: str = "",
         q: str = "",
+        sort: str = "priority",
+        sort_dir: str = "",
         view: str = "list",
         milestone: str = "",
         show_closed: bool = False,
         hide_old: bool = False,
-        hide_done: bool = False,
+        hide_done: bool = True,
         stale_days: int = STALE_CLOSED_DAYS,
+        calendar_month: int | None = None,
+        calendar_year: int | None = None,
     ) -> dict:
         projects = [p for p in (projects or []) if p]
         all_projects = load_all_projects(workspace)
@@ -1556,12 +1560,16 @@ Rules:
                 "date_from": date_from,
                 "date_to": date_to,
                 "q": q,
+                "sort": sort if sort in SORTS else "priority",
+                "sort_dir": sort_dir if sort_dir in {"asc", "desc"} else "",
                 "view": view if view in VIEWS else "list",
                 "milestone": (milestone or "").strip(),
                 "show_closed": bool(show_closed),
                 "hide_old": bool(hide_old),
                 "hide_done": bool(hide_done),
                 "stale_days": stale_days,
+                "calendar_month": calendar_month or "",
+                "calendar_year": calendar_year or "",
             },
         }
 
@@ -1690,12 +1698,17 @@ Rules:
         date_from: str = "",
         date_to: str = "",
         q: str = "",
+        sort: str = "priority",
+        sort_dir: str = "",
         view: str = "list",
         milestone: str = "",
         show_closed: str = "",
         hide_old: str = "",
         hide_done: str = "",
+        show_done: str = "",
         stale_days: str = "",
+        calendar_month: str = "",
+        calendar_year: str = "",
     ) -> HTMLResponse:
         task = load_task(workspace, task_id)
         return templates.TemplateResponse(
@@ -1708,12 +1721,16 @@ Rules:
                 date_from=date_from,
                 date_to=date_to,
                 q=q,
+                sort=sort,
+                sort_dir=sort_dir,
                 view=view,
                 milestone=milestone,
                 show_closed=parse_toggle(show_closed),
                 hide_old=parse_toggle(hide_old),
-                hide_done=parse_toggle(hide_done),
+                hide_done=parse_done_filter(hide_done, show_done),
                 stale_days=parse_stale_days(stale_days),
+                calendar_month=parse_calendar_month(calendar_month),
+                calendar_year=parse_calendar_year(calendar_year),
             ),
         )
 
@@ -1883,12 +1900,16 @@ Rules:
         f_from: str = Form(""),
         f_to: str = Form(""),
         f_q: str = Form(""),
+        f_sort: str = Form("priority"),
+        f_sort_dir: str = Form(""),
         f_view: str = Form("list"),
         f_milestone: str = Form(""),
         f_show_closed: str = Form(""),
         f_hide_done: str = Form(""),
         f_hide_old: str = Form(""),
         f_stale_days: str = Form(str(STALE_CLOSED_DAYS)),
+        f_calendar_month: str = Form(""),
+        f_calendar_year: str = Form(""),
     ) -> HTMLResponse:
         task = load_task(workspace, task_id)
         task.title = title
@@ -1949,12 +1970,16 @@ Rules:
                 date_from=f_from,
                 date_to=f_to,
                 q=f_q,
+                sort=f_sort,
+                sort_dir=f_sort_dir,
                 view=f_view,
                 milestone=f_milestone,
                 show_closed=parse_toggle(f_show_closed),
                 hide_done=parse_toggle(f_hide_done),
                 hide_old=parse_toggle(f_hide_old),
                 stale_days=parse_stale_days(f_stale_days),
+                calendar_month=parse_calendar_month(f_calendar_month),
+                calendar_year=parse_calendar_year(f_calendar_year),
             ),
         )
 
@@ -1977,12 +2002,20 @@ Rules:
         save_due_date: str | None = Form(None),
         save_completed_date: str | None = Form(None),
         save_depends_on: str | None = Form(None),
+        f_project: list[str] = Form(default=[]),
+        f_from: str = Form(""),
+        f_to: str = Form(""),
+        f_q: str = Form(""),
+        f_sort: str = Form("priority"),
+        f_sort_dir: str = Form(""),
         f_view: str = Form("list"),
         f_milestone: str = Form(""),
         f_show_closed: str = Form(""),
         f_hide_done: str = Form(""),
         f_hide_old: str = Form(""),
         f_stale_days: str = Form(str(STALE_CLOSED_DAYS)),
+        f_calendar_month: str = Form(""),
+        f_calendar_year: str = Form(""),
     ) -> HTMLResponse:
         task = load_task(workspace, task_id)
 
@@ -2073,16 +2106,24 @@ Rules:
 
         return templates.TemplateResponse(
             request,
-            "partials/task_panel.html",
+            "partials/main.html",
             context(
                 request,
                 task,
+                projects=f_project,
+                date_from=f_from,
+                date_to=f_to,
+                q=f_q,
+                sort=f_sort,
+                sort_dir=f_sort_dir,
                 view=f_view,
                 milestone=f_milestone,
                 show_closed=parse_toggle(f_show_closed),
                 hide_done=parse_toggle(f_hide_done),
                 hide_old=parse_toggle(f_hide_old),
                 stale_days=parse_stale_days(f_stale_days),
+                calendar_month=parse_calendar_month(f_calendar_month),
+                calendar_year=parse_calendar_year(f_calendar_year),
             ),
         )
 
@@ -2176,12 +2217,16 @@ Rules:
         f_from: str = Form(""),
         f_to: str = Form(""),
         f_q: str = Form(""),
+        f_sort: str = Form("priority"),
+        f_sort_dir: str = Form(""),
         f_view: str = Form("list"),
         f_milestone: str = Form(""),
         f_show_closed: str = Form(""),
         f_hide_done: str = Form(""),
         f_hide_old: str = Form(""),
         f_stale_days: str = Form(str(STALE_CLOSED_DAYS)),
+        f_calendar_month: str = Form(""),
+        f_calendar_year: str = Form(""),
     ) -> HTMLResponse:
         parsed = json.loads(raw_json)
         task = Task.model_validate(parsed)
@@ -2207,12 +2252,16 @@ Rules:
                 date_from=f_from,
                 date_to=f_to,
                 q=f_q,
+                sort=f_sort,
+                sort_dir=f_sort_dir,
                 view=f_view,
                 milestone=f_milestone,
                 show_closed=parse_toggle(f_show_closed),
                 hide_done=parse_toggle(f_hide_done),
                 hide_old=parse_toggle(f_hide_old),
                 stale_days=parse_stale_days(f_stale_days),
+                calendar_month=parse_calendar_month(f_calendar_month),
+                calendar_year=parse_calendar_year(f_calendar_year),
             ),
         )
 
@@ -2445,12 +2494,16 @@ Rules:
         f_from: str = Form(""),
         f_to: str = Form(""),
         f_q: str = Form(""),
+        f_sort: str = Form("priority"),
+        f_sort_dir: str = Form(""),
         f_view: str = Form("list"),
         f_milestone: str = Form(""),
         f_show_closed: str = Form(""),
         f_hide_done: str = Form(""),
         f_hide_old: str = Form(""),
         f_stale_days: str = Form(str(STALE_CLOSED_DAYS)),
+        f_calendar_month: str = Form(""),
+        f_calendar_year: str = Form(""),
     ) -> RedirectResponse:
         delete_task(workspace, task_id)
         params: list[tuple[str, str]] = [("project", p) for p in f_project if p]
@@ -2462,6 +2515,10 @@ Rules:
             params.append(("q", f_q))
         if f_milestone:
             params.append(("milestone", f_milestone))
+        if f_sort and f_sort != "priority":
+            params.append(("sort", f_sort))
+            if f_sort_dir in {"asc", "desc"}:
+                params.append(("sort_dir", f_sort_dir))
         if parse_toggle(f_show_closed):
             params.append(("show_closed", "1"))
         if parse_toggle(f_hide_done):
@@ -2472,6 +2529,10 @@ Rules:
             params.append(("hide_old", "1"))
         if parse_stale_days(f_stale_days) != STALE_CLOSED_DAYS:
             params.append(("stale_days", str(parse_stale_days(f_stale_days))))
+        if parse_calendar_month(f_calendar_month) is not None:
+            params.append(("calendar_month", str(parse_calendar_month(f_calendar_month))))
+        if parse_calendar_year(f_calendar_year) is not None:
+            params.append(("calendar_year", str(parse_calendar_year(f_calendar_year))))
         params.append(("view", f_view))
         return RedirectResponse("/?" + urllib.parse.urlencode(params), status_code=303)
 

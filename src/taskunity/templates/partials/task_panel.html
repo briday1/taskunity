@@ -27,12 +27,16 @@
     <input type="hidden" name="f_from" value="{{ filters.date_from }}">
     <input type="hidden" name="f_to" value="{{ filters.date_to }}">
     <input type="hidden" name="f_q" value="{{ filters.q }}">
+    <input type="hidden" name="f_sort" value="{{ filters.sort }}">
+    <input type="hidden" name="f_sort_dir" value="{{ filters.sort_dir }}">
     <input type="hidden" name="f_view" value="{{ filters.view }}">
     <input type="hidden" name="f_milestone" value="{{ filters.milestone }}">
     <input type="hidden" name="f_show_closed" value="{% if filters.show_closed %}1{% endif %}">
     <input type="hidden" name="f_hide_done" value="{% if filters.hide_done %}1{% endif %}">
     <input type="hidden" name="f_hide_old" value="{% if filters.hide_old %}1{% endif %}">
     <input type="hidden" name="f_stale_days" value="{{ filters.stale_days }}">
+    <input type="hidden" name="f_calendar_month" value="{{ filters.calendar_month }}">
+    <input type="hidden" name="f_calendar_year" value="{{ filters.calendar_year }}">
     <label class="title-field">Title<input name="title" value="{{ selected_task.title }}" required></label>
     <label class="field-label">Project</label>
     <div class="project-picker" data-project-picker>
@@ -157,11 +161,21 @@
         <p class="muted">No activity yet. Add your first update below.</p>
       {% endfor %}
     </div>
-    <form hx-post="/tasks/{{ selected_task.id }}/update" hx-target="#task-panel" hx-swap="innerHTML" enctype="multipart/form-data" class="inline-form progress-update-form" data-save-draft-from="task">
+    <form hx-post="/tasks/{{ selected_task.id }}/update" hx-target="#app-main" hx-swap="outerHTML" enctype="multipart/form-data" class="inline-form progress-update-form" data-save-draft-from="task">
+      {% for p in filters.projects %}<input type="hidden" name="f_project" value="{{ p }}">{% endfor %}
+      <input type="hidden" name="f_from" value="{{ filters.date_from }}">
+      <input type="hidden" name="f_to" value="{{ filters.date_to }}">
+      <input type="hidden" name="f_q" value="{{ filters.q }}">
+      <input type="hidden" name="f_sort" value="{{ filters.sort }}">
+      <input type="hidden" name="f_sort_dir" value="{{ filters.sort_dir }}">
       <input type="hidden" name="f_view" value="{{ filters.view }}">
       <input type="hidden" name="f_milestone" value="{{ filters.milestone }}">
       <input type="hidden" name="f_show_closed" value="{% if filters.show_closed %}1{% endif %}">
+      <input type="hidden" name="f_hide_done" value="{% if filters.hide_done %}1{% endif %}">
+      <input type="hidden" name="f_hide_old" value="{% if filters.hide_old %}1{% endif %}">
       <input type="hidden" name="f_stale_days" value="{{ filters.stale_days }}">
+      <input type="hidden" name="f_calendar_month" value="{{ filters.calendar_month }}">
+      <input type="hidden" name="f_calendar_year" value="{{ filters.calendar_year }}">
 
       <label class="field-label">Update Progress</label>
       <div class="form-grid">
@@ -418,12 +432,16 @@
       <input type="hidden" name="f_from" value="{{ filters.date_from }}">
       <input type="hidden" name="f_to" value="{{ filters.date_to }}">
       <input type="hidden" name="f_q" value="{{ filters.q }}">
+      <input type="hidden" name="f_sort" value="{{ filters.sort }}">
+      <input type="hidden" name="f_sort_dir" value="{{ filters.sort_dir }}">
       <input type="hidden" name="f_view" value="{{ filters.view }}">
       <input type="hidden" name="f_milestone" value="{{ filters.milestone }}">
       <input type="hidden" name="f_show_closed" value="{% if filters.show_closed %}1{% endif %}">
       <input type="hidden" name="f_hide_done" value="{% if filters.hide_done %}1{% endif %}">
       <input type="hidden" name="f_hide_old" value="{% if filters.hide_old %}1{% endif %}">
       <input type="hidden" name="f_stale_days" value="{{ filters.stale_days }}">
+      <input type="hidden" name="f_calendar_month" value="{{ filters.calendar_month }}">
+      <input type="hidden" name="f_calendar_year" value="{{ filters.calendar_year }}">
       <textarea name="raw_json" rows="18" class="code">{{ selected_task.model_dump_json(indent=2) }}</textarea>
       <button type="submit">Save Raw JSON</button>
     </form>
@@ -434,12 +452,16 @@
     <input type="hidden" name="f_from" value="{{ filters.date_from }}">
     <input type="hidden" name="f_to" value="{{ filters.date_to }}">
     <input type="hidden" name="f_q" value="{{ filters.q }}">
+    <input type="hidden" name="f_sort" value="{{ filters.sort }}">
+    <input type="hidden" name="f_sort_dir" value="{{ filters.sort_dir }}">
     <input type="hidden" name="f_view" value="{{ filters.view }}">
     <input type="hidden" name="f_milestone" value="{{ filters.milestone }}">
     <input type="hidden" name="f_show_closed" value="{% if filters.show_closed %}1{% endif %}">
     <input type="hidden" name="f_hide_done" value="{% if filters.hide_done %}1{% endif %}">
     <input type="hidden" name="f_hide_old" value="{% if filters.hide_old %}1{% endif %}">
     <input type="hidden" name="f_stale_days" value="{{ filters.stale_days }}">
+    <input type="hidden" name="f_calendar_month" value="{{ filters.calendar_month }}">
+    <input type="hidden" name="f_calendar_year" value="{{ filters.calendar_year }}">
     <button type="submit">Delete Task</button>
   </form>
 
