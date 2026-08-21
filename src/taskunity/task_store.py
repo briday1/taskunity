@@ -754,10 +754,13 @@ def git_status(workspace: Path) -> dict[str, Any]:
         if top_level.returncode != 0:
             return info
         info["repo_root"] = Path(top_level.stdout.strip()).resolve()
-        if info["repo_root"] != Path(workspace).resolve():
-            info["message"] = "Git integration only works when the workspace folder is the repository root."
-            return info
         info["tracked"] = True
+        workspace_path = Path(workspace).resolve()
+        try:
+            relative = workspace_path.relative_to(info["repo_root"])
+            info["repo_scope"] = "." if not relative.parts else relative.as_posix()
+        except ValueError:
+            info["repo_scope"] = "."
         branch_result = _git(workspace, "symbolic-ref", "--short", "HEAD")
         if branch_result.returncode == 0:
             info["branch"] = branch_result.stdout.strip()
@@ -794,7 +797,7 @@ def git_sync(workspace: Path) -> dict[str, Any]:
 
     # If git-lfs is available, configure it quietly and continue with normal git flow.
     # This avoids separate UI flows while still using LFS automatically when possible.
-    if git_lfs_available(workspace):
+    if git_lfs_available(workspace) and status.get("repo_root") == Path(workspace).resolve():
         try:
             _git(workspace, "lfs", "install", "--local")
             _git(workspace, "lfs", "track", "assets/**")
@@ -816,17 +819,28 @@ def git_sync(workspace: Path) -> dict[str, Any]:
                 workspace, "rev-parse", "--abbrev-ref", "HEAD"
             ).stdout.strip() or "main"
 
-        if status["dirty"]:
-            _git(workspace, "add", ".")
+        changed_files = int(status["dirty"])
+        committed = False
+        if changed_files:
+            add = _git(workspace, "add", "-A", "--", ".")
+            if add.returncode != 0:
+                result["message"] = "Git couldn't prepare the workspace changes: " + (add.stderr.strip() or add.stdout.strip())
+                return result
             commit = _git(
-                workspace, "commit", "-m", f"taskunity: sync workspace ({datetime.now():%Y-%m-%d %H:%M})"
+                workspace,
+                "commit",
+                "-m",
+                f"taskunity: sync workspace ({datetime.now():%Y-%m-%d %H:%M})",
+                "--",
+                ".",
             )
             if commit.returncode != 0 and "nothing to commit" not in (commit.stdout + commit.stderr).lower():
-                result["message"] = "Commit failed: " + (commit.stderr.strip() or commit.stdout.strip())
+                result["message"] = "Git couldn't save the workspace changes in a commit: " + (commit.stderr.strip() or commit.stdout.strip())
                 return result
+            committed = commit.returncode == 0
 
         # Fresh/empty repo safety: if there is no HEAD commit yet, create one so push can succeed.
-        if not has_head:
+        if not has_head and not committed:
             init_commit = _git(
                 workspace,
                 "commit",
@@ -838,6 +852,11 @@ def git_sync(workspace: Path) -> dict[str, Any]:
                 result["message"] = "Commit failed: " + (init_commit.stderr.strip() or init_commit.stdout.strip())
                 return result
 
+        if branch == "HEAD":
+            saved = f"Saved {changed_files} workspace change{'s' if changed_files != 1 else ''} in a local commit. " if committed else ""
+            result["message"] = saved + "This repository is checked out at a specific commit (detached HEAD), so Git has no branch to pull or push. Switch to or create a branch, then press Sync again."
+            return result
+
         upstream = status["upstream"]
         if upstream:
             upstream_ref = _git(workspace, "show-ref", "--verify", "--quiet", f"refs/remotes/{upstream}")
@@ -848,26 +867,49 @@ def git_sync(workspace: Path) -> dict[str, Any]:
             origin = _git(workspace, "remote", "get-url", "origin")
             if origin.returncode != 0:
                 result["ok"] = True
-                result["message"] = "Committed locally. No upstream is configured and no 'origin' remote was found."
+                if committed:
+                    result["message"] = f"Saved {changed_files} workspace change{'s' if changed_files != 1 else ''} in a local commit. There is no remote named 'origin', so the commit remains local."
+                else:
+                    result["message"] = "There are no uncommitted workspace changes. This branch has no upstream and there is no remote named 'origin', so there is nothing to exchange yet."
                 return result
             set_upstream = _git(workspace, "push", "-u", "origin", branch)
             if set_upstream.returncode != 0:
-                result["message"] = "Push failed: " + (set_upstream.stderr.strip() or set_upstream.stdout.strip())
+                prefix = f"Saved {changed_files} workspace change{'s' if changed_files != 1 else ''} locally, but " if committed else ""
+                result["message"] = prefix + "Git couldn't publish this branch or set its upstream: " + (set_upstream.stderr.strip() or set_upstream.stdout.strip())
                 return result
             result["ok"] = True
-            result["message"] = f"Synced and set upstream to origin/{branch}."
+            saved = f"Saved {changed_files} workspace change{'s' if changed_files != 1 else ''}, " if committed else ""
+            result["message"] = saved + f"published the branch, and set upstream to origin/{branch}. The workspace is now in sync."
             return result
 
+        before_pull = _git(workspace, "rev-parse", "HEAD").stdout.strip()
         pull = _git(workspace, "pull", "--no-edit")
         if pull.returncode != 0:
-            result["message"] = "Pull failed: " + (pull.stderr.strip() or pull.stdout.strip())
+            prefix = f"Your {changed_files} workspace change{'s were' if changed_files != 1 else ' was'} saved locally, but " if committed else ""
+            result["message"] = prefix + f"Git couldn't pull from {status['upstream']}: " + (pull.stderr.strip() or pull.stdout.strip())
             return result
+        after_pull = _git(workspace, "rev-parse", "HEAD").stdout.strip()
+        before_push = git_status(workspace)
+        commits_to_push = int(before_push["ahead"])
         push = _git(workspace, "push")
         if push.returncode != 0:
-            result["message"] = "Push failed: " + (push.stderr.strip() or push.stdout.strip())
+            result["message"] = f"The workspace is saved locally, but Git couldn't push to {status['upstream']}: " + (push.stderr.strip() or push.stdout.strip())
             return result
+        final_status = git_status(workspace)
+        actions = []
+        if committed:
+            actions.append(f"saved {changed_files} workspace change{'s' if changed_files != 1 else ''}")
+        if before_pull and after_pull and before_pull != after_pull:
+            actions.append("pulled remote updates")
+        if commits_to_push:
+            actions.append(f"pushed {commits_to_push} commit{'s' if commits_to_push != 1 else ''}")
         result["ok"] = True
-        result["message"] = f"Synced with {status['upstream']}."
+        if final_status["dirty"] or final_status["ahead"] or final_status["behind"]:
+            result["message"] = ("Git " + ", ".join(actions) + ". " if actions else "") + f"The workspace now shows {final_status['dirty']} uncommitted change(s), {final_status['ahead']} ahead, and {final_status['behind']} behind {status['upstream']}."
+        elif actions:
+            result["message"] = "Git " + ", ".join(actions) + f". The workspace is now in sync with {status['upstream']}."
+        else:
+            result["message"] = f"Everything is already in sync with {status['upstream']}; there were no workspace changes to save and no commits to exchange."
     except (OSError, subprocess.SubprocessError) as exc:
         result["message"] = str(exc)
     return result

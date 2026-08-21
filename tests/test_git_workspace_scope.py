@@ -16,7 +16,7 @@ def _run_git(path: Path, *args: str) -> subprocess.CompletedProcess[str]:
     )
 
 
-def test_git_status_requires_workspace_repo_root(tmp_path: Path) -> None:
+def test_git_status_scopes_nested_workspace_to_its_folder(tmp_path: Path) -> None:
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
     _run_git(repo_root, "init")
@@ -26,22 +26,31 @@ def test_git_status_requires_workspace_repo_root(tmp_path: Path) -> None:
 
     status = git_status(workspace)
 
-    assert status["tracked"] is False
-    assert status["message"] == "Git integration only works when the workspace folder is the repository root."
+    assert status["tracked"] is True
+    assert status["repo_root"] == repo_root.resolve()
+    assert status["repo_scope"] == "workspace"
 
 
-def test_git_sync_rejects_nested_workspace_repo(tmp_path: Path) -> None:
+def test_git_sync_commits_nested_workspace_without_unrelated_repo_files(tmp_path: Path) -> None:
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
     _run_git(repo_root, "init")
+    _run_git(repo_root, "config", "user.name", "Taskunity Test")
+    _run_git(repo_root, "config", "user.email", "taskunity@example.com")
+    (repo_root / "outside.txt").write_text("leave me uncommitted", encoding="utf-8")
 
     workspace = repo_root / "workspace"
     ensure_workspace(workspace)
 
     result = git_sync(workspace)
 
-    assert result["ok"] is False
-    assert result["message"] == "Git integration only works when the workspace folder is the repository root."
+    assert result["ok"] is True
+    assert "local commit" in result["message"].lower()
+    committed = _run_git(repo_root, "show", "--name-only", "--format=").stdout.splitlines()
+    assert any(path.startswith("workspace/") for path in committed)
+    assert "outside.txt" not in committed
+    assert (repo_root / "outside.txt").exists()
+    assert git_status(workspace)["dirty"] == 0
 
 
 def test_git_status_allows_workspace_repo_root(tmp_path: Path) -> None:

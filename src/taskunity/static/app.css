@@ -861,8 +861,8 @@ button:focus-visible { outline: none; box-shadow: var(--ring); }
 .git-sync-btn[disabled] { opacity: .78; cursor: progress; }
 .git-sync-label { display: inline; }
 .git-sync-working { display: none !important; }
-.git-sync-form.htmx-request .git-sync-label { display: none; }
-.git-sync-form.htmx-request .git-sync-working { display: inline !important; }
+.git-chip.syncing .git-sync-label { display: none; }
+.git-chip.syncing .git-sync-working { display: inline !important; }
 
 @keyframes gitSpin {
   from { transform: rotate(0deg); }
